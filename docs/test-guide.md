@@ -10,6 +10,7 @@
 - 테스트 패키지명은 반드시 `_test`를 붙입니다.
 - 가능하면 외부 공개 동작을 기준으로 검증합니다.
 - assertion은 `github.com/stretchr/testify/require`를 사용합니다.
+- 테스트에서 `context.Context`가 필요하면 `context.Background()` 대신 `t.Context()`를 사용합니다.
 
 예시:
 
@@ -35,7 +36,7 @@ func TestService_CreateProject(t *testing.T) {
  service := flow.NewService()
 
  // Act
- project, err := service.CreateProject(context.Background(), "worker", "https://github.com/neatflowcv/worker.git")
+ project, err := service.CreateProject(t.Context(), "worker", "https://github.com/neatflowcv/worker.git")
 
  // Assert
  require.NoError(t, err)
