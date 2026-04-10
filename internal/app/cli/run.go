@@ -10,6 +10,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/neatflowcv/worker/internal/app/flow"
 	projectbadger "github.com/neatflowcv/worker/internal/pkg/badger"
+	"github.com/neatflowcv/worker/internal/pkg/local"
 )
 
 func Run() error {
@@ -22,11 +23,16 @@ func Run() error {
 		_ = projectRepository.Close()
 	}()
 
+	projectWorkspace, err := newWorkspace()
+	if err != nil {
+		return fmt.Errorf("create workspace: %w", err)
+	}
+
 	return RunWithArgs(
 		context.Background(),
 		os.Args[1:],
 		os.Stdout,
-		flow.NewService(projectRepository),
+		flow.NewService(projectRepository, projectWorkspace),
 	)
 }
 
@@ -69,4 +75,15 @@ func newProjectRepository() (*projectbadger.ProjectRepository, error) {
 	}
 
 	return projectRepository, nil
+}
+
+func newWorkspace() (*local.Workspace, error) {
+	dataHome, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("resolve user home directory: %w", err)
+	}
+
+	return local.NewWorkspace(
+		filepath.Join(dataHome, ".local", "share", "worker", "projects"),
+	), nil
 }

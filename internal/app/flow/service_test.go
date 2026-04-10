@@ -13,7 +13,10 @@ func TestService_CreateProject(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
-	service := flow.NewService(memory.NewProjectRepository())
+	service := flow.NewService(
+		memory.NewProjectRepository(),
+		memory.NewWorkspace(),
+	)
 
 	// Act
 	project, err := service.CreateProject(t.Context(), "worker", "https://github.com/neatflowcv/worker.git")
@@ -32,7 +35,10 @@ func TestService_ListProjects(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
-	service := flow.NewService(memory.NewProjectRepository())
+	service := flow.NewService(
+		memory.NewProjectRepository(),
+		memory.NewWorkspace(),
+	)
 
 	// Act
 	projects, err := service.ListProjects(t.Context())
