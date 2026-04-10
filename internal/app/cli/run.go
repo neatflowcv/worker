@@ -8,10 +8,16 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/neatflowcv/worker/internal/app/flow"
+	"github.com/neatflowcv/worker/internal/pkg/memory"
 )
 
 func Run() error {
-	return RunWithArgs(context.Background(), os.Args[1:], os.Stdout, flow.NewService())
+	return RunWithArgs(
+		context.Background(),
+		os.Args[1:],
+		os.Stdout,
+		flow.NewService(memory.NewProjectRepository()),
+	)
 }
 
 func RunWithArgs(ctx context.Context, args []string, stdout io.Writer, service *flow.Service) error {

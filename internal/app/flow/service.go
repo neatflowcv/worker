@@ -2,25 +2,39 @@ package flow
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/neatflowcv/worker/internal/pkg/domain"
+	"github.com/neatflowcv/worker/internal/pkg/repository"
 	"github.com/oklog/ulid/v2"
 )
 
-type Service struct{}
+type Service struct {
+	projectRepository repository.ProjectRepository
+}
 
-func NewService() *Service {
-	return &Service{}
+func NewService(projectRepository repository.ProjectRepository) *Service {
+	return &Service{
+		projectRepository: projectRepository,
+	}
 }
 
 func (s *Service) CreateProject(ctx context.Context, name, url string) (*domain.Project, error) {
-	_ = ctx
+	project := domain.NewRepository(ulid.Make().String(), name, url)
 
-	return domain.NewRepository(ulid.Make().String(), name, url), nil
+	err := s.projectRepository.Create(ctx, project)
+	if err != nil {
+		return nil, fmt.Errorf("create project: %w", err)
+	}
+
+	return project, nil
 }
 
 func (s *Service) ListProjects(ctx context.Context) ([]*domain.Project, error) {
-	_ = ctx
+	projects, err := s.projectRepository.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list projects: %w", err)
+	}
 
-	return []*domain.Project{}, nil
+	return projects, nil
 }
