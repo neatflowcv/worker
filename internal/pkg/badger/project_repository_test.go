@@ -1,0 +1,91 @@
+package badger_test
+
+import (
+	"testing"
+
+	"github.com/neatflowcv/worker/internal/pkg/badger"
+	"github.com/neatflowcv/worker/internal/pkg/domain"
+	"github.com/stretchr/testify/require"
+)
+
+func TestProjectRepository_ListReturnsZeroProjects(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	repo := newProjectRepository(t)
+
+	// Act
+	projects, err := repo.List(t.Context())
+
+	// Assert
+	require.NoError(t, err)
+	require.Empty(t, projects)
+}
+
+func TestProjectRepository_CreatePersistsProject(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	dir := t.TempDir()
+	repo := newProjectRepositoryAt(t, dir)
+	project := domain.NewRepository("project-1", "worker", "https://github.com/neatflowcv/worker.git")
+
+	// Act
+	err := repo.Create(t.Context(), project)
+	require.NoError(t, err)
+	require.NoError(t, repo.Close())
+
+	reopened := newProjectRepositoryAt(t, dir)
+	projects, err := reopened.List(t.Context())
+
+	// Assert
+	require.NoError(t, err)
+	require.Len(t, projects, 1)
+	require.Equal(t, project.ID(), projects[0].ID())
+	require.Equal(t, project.Name(), projects[0].Name())
+	require.Equal(t, project.RepositoryURL(), projects[0].RepositoryURL())
+}
+
+func TestProjectRepository_ListReturnsTwoProjects(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	repo := newProjectRepository(t)
+	first := domain.NewRepository("project-1", "worker", "https://github.com/neatflowcv/worker.git")
+	second := domain.NewRepository("project-2", "worker-docs", "https://github.com/neatflowcv/docs.git")
+
+	require.NoError(t, repo.Create(t.Context(), first))
+	require.NoError(t, repo.Create(t.Context(), second))
+
+	// Act
+	projects, err := repo.List(t.Context())
+
+	// Assert
+	require.NoError(t, err)
+	require.Len(t, projects, 2)
+	require.Equal(t, first.ID(), projects[0].ID())
+	require.Equal(t, first.Name(), projects[0].Name())
+	require.Equal(t, first.RepositoryURL(), projects[0].RepositoryURL())
+	require.Equal(t, second.ID(), projects[1].ID())
+	require.Equal(t, second.Name(), projects[1].Name())
+	require.Equal(t, second.RepositoryURL(), projects[1].RepositoryURL())
+}
+
+func newProjectRepository(t *testing.T) *badger.ProjectRepository {
+	t.Helper()
+
+	return newProjectRepositoryAt(t, t.TempDir())
+}
+
+func newProjectRepositoryAt(t *testing.T, dir string) *badger.ProjectRepository {
+	t.Helper()
+
+	repo, err := badger.NewProjectRepository(dir)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		require.NoError(t, repo.Close())
+	})
+
+	return repo
+}

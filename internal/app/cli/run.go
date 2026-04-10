@@ -5,18 +5,28 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/alecthomas/kong"
 	"github.com/neatflowcv/worker/internal/app/flow"
-	"github.com/neatflowcv/worker/internal/pkg/memory"
+	projectbadger "github.com/neatflowcv/worker/internal/pkg/badger"
 )
 
 func Run() error {
+	projectRepository, err := newProjectRepository()
+	if err != nil {
+		return fmt.Errorf("create project repository: %w", err)
+	}
+
+	defer func() {
+		_ = projectRepository.Close()
+	}()
+
 	return RunWithArgs(
 		context.Background(),
 		os.Args[1:],
 		os.Stdout,
-		flow.NewService(memory.NewProjectRepository()),
+		flow.NewService(projectRepository),
 	)
 }
 
@@ -43,4 +53,20 @@ func RunWithArgs(ctx context.Context, args []string, stdout io.Writer, service *
 	}
 
 	return nil
+}
+
+func newProjectRepository() (*projectbadger.ProjectRepository, error) {
+	dataHome, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("resolve user home directory: %w", err)
+	}
+
+	projectRepository, err := projectbadger.NewProjectRepository(
+		filepath.Join(dataHome, ".local", "share", "worker", "projects.badger"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("open project repository: %w", err)
+	}
+
+	return projectRepository, nil
 }
