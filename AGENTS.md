@@ -16,7 +16,7 @@
 - 마크다운 가이드: [docs/markdown-guide.md](docs/markdown-guide.md)
   - 마크다운 문서를 작성하거나 수정할 때 반드시 확인합니다.
 - Go 가이드: [docs/go-guide.md](docs/go-guide.md)
-  - Go 코드를 작성하거나 수정할 때 확인하고, 커밋 전에는 가이드의 점검 순서를 따릅니다.
+  - Go 코드를 작성하거나 수정할 때 확인하고, 변경 후에는 가이드의 점검 순서를 따릅니다.
 
 ## 문서 링크 규칙
 
