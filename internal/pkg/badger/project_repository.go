@@ -123,7 +123,7 @@ func (r *ProjectRepository) List(ctx context.Context) ([]*domain.Project, error)
 
 				projects = append(
 					projects,
-					domain.NewRepository(record.ID, record.Name, record.RepositoryURL),
+					domain.NewProject(record.ID, record.Name, record.RepositoryURL),
 				)
 
 				return nil

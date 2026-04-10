@@ -27,7 +27,7 @@ func TestProjectRepository_ListReturnsOneProject(t *testing.T) {
 
 	// Arrange
 	repo := memory.NewProjectRepository()
-	project := domain.NewRepository("project-1", "worker", "https://github.com/neatflowcv/worker.git")
+	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
 	repo.Append(project)
 
 	// Act
@@ -44,8 +44,8 @@ func TestProjectRepository_ListReturnsTwoProjects(t *testing.T) {
 
 	// Arrange
 	repo := memory.NewProjectRepository()
-	first := domain.NewRepository("project-1", "worker", "https://github.com/neatflowcv/worker.git")
-	second := domain.NewRepository("project-2", "worker-docs", "https://github.com/neatflowcv/docs.git")
+	first := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
+	second := domain.NewProject("project-2", "worker-docs", "https://github.com/neatflowcv/docs.git")
 
 	repo.Append(first, second)
 

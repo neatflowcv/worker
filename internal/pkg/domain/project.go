@@ -6,7 +6,7 @@ type Project struct {
 	repositoryURL string
 }
 
-func NewRepository(id, name, repositoryURL string) *Project {
+func NewProject(id, name, repositoryURL string) *Project {
 	return &Project{
 		id:            id,
 		name:          name,

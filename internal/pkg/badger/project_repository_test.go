@@ -28,7 +28,7 @@ func TestProjectRepository_CreatePersistsProject(t *testing.T) {
 	// Arrange
 	dir := t.TempDir()
 	repo := newProjectRepositoryAt(t, dir)
-	project := domain.NewRepository("project-1", "worker", "https://github.com/neatflowcv/worker.git")
+	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
 
 	// Act
 	err := repo.Create(t.Context(), project)
@@ -51,8 +51,8 @@ func TestProjectRepository_ListReturnsTwoProjects(t *testing.T) {
 
 	// Arrange
 	repo := newProjectRepository(t)
-	first := domain.NewRepository("project-1", "worker", "https://github.com/neatflowcv/worker.git")
-	second := domain.NewRepository("project-2", "worker-docs", "https://github.com/neatflowcv/docs.git")
+	first := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
+	second := domain.NewProject("project-2", "worker-docs", "https://github.com/neatflowcv/docs.git")
 
 	require.NoError(t, repo.Create(t.Context(), first))
 	require.NoError(t, repo.Create(t.Context(), second))

@@ -20,7 +20,7 @@ func NewService(projectRepository repository.ProjectRepository) *Service {
 }
 
 func (s *Service) CreateProject(ctx context.Context, name, url string) (*domain.Project, error) {
-	project := domain.NewRepository(ulid.Make().String(), name, url)
+	project := domain.NewProject(ulid.Make().String(), name, url)
 
 	err := s.projectRepository.Create(ctx, project)
 	if err != nil {
