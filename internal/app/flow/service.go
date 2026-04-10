@@ -18,3 +18,9 @@ func (s *Service) CreateProject(ctx context.Context, name, url string) (*domain.
 
 	return domain.NewRepository(ulid.Make().String(), name, url), nil
 }
+
+func (s *Service) ListProjects(ctx context.Context) ([]*domain.Project, error) {
+	_ = ctx
+
+	return []*domain.Project{}, nil
+}

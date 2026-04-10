@@ -23,3 +23,13 @@ func TestService_CreateProject(t *testing.T) {
 	_, err = ulid.Parse(project.ID())
 	require.NoError(t, err)
 }
+
+func TestService_ListProjects(t *testing.T) {
+	t.Parallel()
+
+	service := flow.NewService()
+
+	projects, err := service.ListProjects(context.Background())
+	require.NoError(t, err)
+	require.Empty(t, projects)
+}
