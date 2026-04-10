@@ -5,6 +5,7 @@ import (
 
 	"github.com/neatflowcv/worker/internal/pkg/domain"
 	"github.com/neatflowcv/worker/internal/pkg/memory"
+	"github.com/neatflowcv/worker/internal/pkg/repository"
 	"github.com/stretchr/testify/require"
 )
 
@@ -57,4 +58,36 @@ func TestProjectRepository_ListReturnsTwoProjects(t *testing.T) {
 	require.Len(t, projects, 2)
 	require.Same(t, first, projects[0])
 	require.Same(t, second, projects[1])
+}
+
+func TestProjectRepository_GetByNameReturnsProject(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	repo := memory.NewProjectRepository()
+	first := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
+	second := domain.NewProject("project-2", "worker-docs", "https://github.com/neatflowcv/docs.git")
+	repo.Append(first, second)
+
+	// Act
+	project, err := repo.GetByName(t.Context(), "worker-docs")
+
+	// Assert
+	require.NoError(t, err)
+	require.Same(t, second, project)
+}
+
+func TestProjectRepository_GetByNameReturnsNilWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	repo := memory.NewProjectRepository()
+	repo.Append(domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"))
+
+	// Act
+	project, err := repo.GetByName(t.Context(), "missing")
+
+	// Assert
+	require.ErrorIs(t, err, repository.ErrProjectNotFound)
+	require.Nil(t, project)
 }

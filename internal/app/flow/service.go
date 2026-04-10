@@ -2,6 +2,7 @@ package flow
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/neatflowcv/worker/internal/pkg/domain"
@@ -9,6 +10,8 @@ import (
 	workspacepkg "github.com/neatflowcv/worker/internal/pkg/workspace"
 	"github.com/oklog/ulid/v2"
 )
+
+var ErrProjectAlreadyExists = errors.New("project already exists")
 
 type Service struct {
 	projectRepository repository.ProjectRepository
@@ -26,9 +29,18 @@ func NewService(
 }
 
 func (s *Service) CreateProject(ctx context.Context, name, url string) (*domain.Project, error) {
+	_, err := s.projectRepository.GetByName(ctx, name)
+	if err == nil {
+		return nil, ErrProjectAlreadyExists
+	}
+
+	if !errors.Is(err, repository.ErrProjectNotFound) {
+		return nil, fmt.Errorf("get project by name: %w", err)
+	}
+
 	project := domain.NewProject(ulid.Make().String(), name, url)
 
-	err := s.workspace.CreateWorkspace(ctx, project)
+	err = s.workspace.CreateWorkspace(ctx, project)
 	if err != nil {
 		return nil, fmt.Errorf("create workspace: %w", err)
 	}
