@@ -13,10 +13,9 @@ import (
 var errNotImplemented = errors.New("not implemented")
 
 type projectBacklogCreateCommand struct {
-	Project         string `arg:""                           help:"Project name."       name:"project"`
-	Title           string `arg:""                           help:"Backlog item title." name:"title"`
-	Description     string `help:"Backlog item description." name:"description"         xor:"description_input"`
-	DescriptionFile string `help:"File path."                name:"description-file"    xor:"description_input"`
+	Project     string `arg:""                                        help:"Project name."       name:"project"`
+	Title       string `arg:""                                        help:"Backlog item title." name:"title"`
+	Description string `help:"Path to backlog item description file." name:"description"`
 }
 
 func (c *projectBacklogCreateCommand) Run(ctx context.Context, service *flow.Service, stdout io.Writer) error {
@@ -45,11 +44,11 @@ func (c *projectBacklogCreateCommand) Run(ctx context.Context, service *flow.Ser
 }
 
 func (c *projectBacklogCreateCommand) resolveDescription() (string, error) {
-	if c.DescriptionFile == "" {
-		return c.Description, nil
+	if c.Description == "" {
+		return "", nil
 	}
 
-	content, err := os.ReadFile(c.DescriptionFile)
+	content, err := os.ReadFile(c.Description)
 	if err != nil {
 		return "", fmt.Errorf("read description file: %w", err)
 	}
