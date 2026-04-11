@@ -5,9 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"sync"
 
 	badgerdb "github.com/dgraph-io/badger/v4"
 	"github.com/neatflowcv/worker/internal/pkg/domain"
@@ -16,14 +13,11 @@ import (
 
 const projectKeyPrefix = "project/"
 const projectNameKeyPrefix = "project_name/"
-const databaseDirectoryPermission = 0o750
 
 var _ repository.ProjectRepository = (*ProjectRepository)(nil)
 
 type ProjectRepository struct {
-	db        *badgerdb.DB
-	closeOnce sync.Once
-	closeErr  error
+	db *badgerdb.DB
 }
 
 type projectRecord struct {
@@ -32,38 +26,10 @@ type projectRecord struct {
 	RepositoryURL string `json:"repositoryUrl"`
 }
 
-func NewProjectRepository(dir string) (*ProjectRepository, error) {
-	cleanDir := filepath.Clean(dir)
-
-	err := os.MkdirAll(cleanDir, databaseDirectoryPermission)
-	if err != nil {
-		return nil, fmt.Errorf("create badger database directory: %w", err)
-	}
-
-	options := badgerdb.DefaultOptions(cleanDir)
-	options.Logger = nil
-
-	database, err := badgerdb.Open(options)
-	if err != nil {
-		return nil, fmt.Errorf("open badger database: %w", err)
-	}
-
+func NewProjectRepository(database *Database) *ProjectRepository {
 	return &ProjectRepository{
-		db:        database,
-		closeOnce: sync.Once{},
-		closeErr:  nil,
-	}, nil
-}
-
-func (r *ProjectRepository) Close() error {
-	r.closeOnce.Do(func() {
-		r.closeErr = r.db.Close()
-		if r.closeErr != nil {
-			r.closeErr = fmt.Errorf("close badger database: %w", r.closeErr)
-		}
-	})
-
-	return r.closeErr
+		db: database.db,
+	}
 }
 
 func (r *ProjectRepository) Create(ctx context.Context, project *domain.Project) error {

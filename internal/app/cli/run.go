@@ -14,14 +14,17 @@ import (
 )
 
 func Run() error {
-	projectRepository, err := newProjectRepository()
+	database, err := newDatabase()
 	if err != nil {
-		return fmt.Errorf("create project repository: %w", err)
+		return fmt.Errorf("create badger database: %w", err)
 	}
 
 	defer func() {
-		_ = projectRepository.Close()
+		_ = database.Close()
 	}()
+
+	projectRepository := projectbadger.NewProjectRepository(database)
+	backlogItemRepository := projectbadger.NewBacklogItemRepository(database)
 
 	projectWorkspace, err := newWorkspace()
 	if err != nil {
@@ -32,7 +35,7 @@ func Run() error {
 		context.Background(),
 		os.Args[1:],
 		os.Stdout,
-		flow.NewService(projectRepository, projectWorkspace),
+		flow.NewService(projectRepository, backlogItemRepository, projectWorkspace),
 	)
 }
 
@@ -61,20 +64,20 @@ func RunWithArgs(ctx context.Context, args []string, stdout io.Writer, service *
 	return nil
 }
 
-func newProjectRepository() (*projectbadger.ProjectRepository, error) {
+func newDatabase() (*projectbadger.Database, error) {
 	dataHome, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("resolve user home directory: %w", err)
 	}
 
-	projectRepository, err := projectbadger.NewProjectRepository(
+	database, err := projectbadger.NewDatabase(
 		filepath.Join(dataHome, ".local", "share", "worker", "projects.badger"),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("open project repository: %w", err)
+		return nil, fmt.Errorf("open badger database: %w", err)
 	}
 
-	return projectRepository, nil
+	return database, nil
 }
 
 func newWorkspace() (*local.Workspace, error) {

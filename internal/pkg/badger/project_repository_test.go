@@ -28,15 +28,15 @@ func TestProjectRepository_CreatePersistsProject(t *testing.T) {
 
 	// Arrange
 	dir := t.TempDir()
-	repo := newProjectRepositoryAt(t, dir)
+	repo, database := newProjectRepositoryAt(t, dir)
 	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
 
 	// Act
 	err := repo.Create(t.Context(), project)
 	require.NoError(t, err)
-	require.NoError(t, repo.Close())
+	require.NoError(t, database.Close())
 
-	reopened := newProjectRepositoryAt(t, dir)
+	reopened, _ := newProjectRepositoryAt(t, dir)
 	projects, err := reopened.List(t.Context())
 	require.NoError(t, err)
 
@@ -121,18 +121,20 @@ func TestProjectRepository_GetByNameReturnsNilWhenMissing(t *testing.T) {
 func newProjectRepository(t *testing.T) *badger.ProjectRepository {
 	t.Helper()
 
-	return newProjectRepositoryAt(t, t.TempDir())
+	repo, _ := newProjectRepositoryAt(t, t.TempDir())
+
+	return repo
 }
 
-func newProjectRepositoryAt(t *testing.T, dir string) *badger.ProjectRepository {
+func newProjectRepositoryAt(t *testing.T, dir string) (*badger.ProjectRepository, *badger.Database) {
 	t.Helper()
 
-	repo, err := badger.NewProjectRepository(dir)
+	database, err := badger.NewDatabase(dir)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		require.NoError(t, repo.Close())
+		require.NoError(t, database.Close())
 	})
 
-	return repo
+	return badger.NewProjectRepository(database), database
 }

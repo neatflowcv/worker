@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/neatflowcv/worker/internal/app/flow"
@@ -14,10 +15,17 @@ type projectBacklogListCommand struct {
 }
 
 func (c *projectBacklogListCommand) Run(ctx context.Context, service *flow.Service, stdout io.Writer) error {
-	_ = c
-	_ = ctx
-	_ = service
-	_ = stdout
+	items, err := service.ListBacklogItems(ctx, c.Project, c.After, c.Limit)
+	if err != nil {
+		return fmt.Errorf("list backlog items: %w", err)
+	}
 
-	return errNotImplemented
+	for _, item := range items {
+		_, err = fmt.Fprintf(stdout, "%s %s %s\n", item.ID(), item.Status(), item.Title())
+		if err != nil {
+			return fmt.Errorf("write backlog item output: %w", err)
+		}
+	}
+
+	return nil
 }

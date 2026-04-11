@@ -13,18 +13,23 @@ import (
 
 var ErrProjectAlreadyExists = errors.New("project already exists")
 
+const defaultBacklogItemLimit = 20
+
 type Service struct {
-	projectRepository repository.ProjectRepository
-	workspace         workspacepkg.Workspace
+	projectRepository     repository.ProjectRepository
+	backlogItemRepository repository.BacklogItemRepository
+	workspace             workspacepkg.Workspace
 }
 
 func NewService(
 	projectRepository repository.ProjectRepository,
+	backlogItemRepository repository.BacklogItemRepository,
 	workspace workspacepkg.Workspace,
 ) *Service {
 	return &Service{
-		projectRepository: projectRepository,
-		workspace:         workspace,
+		projectRepository:     projectRepository,
+		backlogItemRepository: backlogItemRepository,
+		workspace:             workspace,
 	}
 }
 
@@ -60,4 +65,59 @@ func (s *Service) ListProjects(ctx context.Context) ([]*domain.Project, error) {
 	}
 
 	return projects, nil
+}
+
+func (s *Service) CreateBacklogItem(
+	ctx context.Context,
+	projectName string,
+	title string,
+	description string,
+) (*domain.BacklogItem, error) {
+	project, err := s.projectRepository.GetByName(ctx, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("get project by name: %w", err)
+	}
+
+	item := domain.NewBacklogItem(
+		ulid.Make().String(),
+		project.ID(),
+		title,
+		description,
+		"",
+	)
+
+	err = s.backlogItemRepository.CreateBacklogItem(ctx, item)
+	if err != nil {
+		return nil, fmt.Errorf("create backlog item: %w", err)
+	}
+
+	return item, nil
+}
+
+func (s *Service) ListBacklogItems(
+	ctx context.Context,
+	projectName string,
+	afterID string,
+	limit int,
+) ([]*domain.BacklogItem, error) {
+	project, err := s.projectRepository.GetByName(ctx, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("get project by name: %w", err)
+	}
+
+	if limit <= 0 {
+		limit = defaultBacklogItemLimit
+	}
+
+	items, err := s.backlogItemRepository.ListBacklogItems(
+		ctx,
+		project.ID(),
+		afterID,
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list backlog items: %w", err)
+	}
+
+	return items, nil
 }
