@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,6 +17,8 @@ import (
 var _ workspace.Workspace = (*Workspace)(nil)
 
 const projectDirMode = 0o750
+
+var errProjectDirNotDirectory = errors.New("project directory is not a directory")
 
 type Workspace struct {
 	rootDir string
@@ -66,4 +69,19 @@ func (w *Workspace) CreateWorkspace(ctx context.Context, project *domain.Project
 	}
 
 	return nil
+}
+
+func (w *Workspace) ProjectDir(_ context.Context, project *domain.Project) (string, error) {
+	projectDir := filepath.Join(w.rootDir, project.ID(), "main")
+
+	info, err := os.Stat(projectDir)
+	if err != nil {
+		return "", fmt.Errorf("stat project directory: %w", err)
+	}
+
+	if !info.IsDir() {
+		return "", errProjectDirNotDirectory
+	}
+
+	return projectDir, nil
 }

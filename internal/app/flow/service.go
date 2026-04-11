@@ -7,6 +7,7 @@ import (
 
 	"github.com/neatflowcv/worker/internal/pkg/domain"
 	"github.com/neatflowcv/worker/internal/pkg/repository"
+	"github.com/neatflowcv/worker/internal/pkg/runner"
 	workspacepkg "github.com/neatflowcv/worker/internal/pkg/workspace"
 	"github.com/oklog/ulid/v2"
 )
@@ -19,17 +20,20 @@ type Service struct {
 	projectRepository     repository.ProjectRepository
 	backlogItemRepository repository.BacklogItemRepository
 	workspace             workspacepkg.Workspace
+	backlogActionRunner   runner.BacklogActionRunner
 }
 
 func NewService(
 	projectRepository repository.ProjectRepository,
 	backlogItemRepository repository.BacklogItemRepository,
 	workspace workspacepkg.Workspace,
+	backlogActionRunner runner.BacklogActionRunner,
 ) *Service {
 	return &Service{
 		projectRepository:     projectRepository,
 		backlogItemRepository: backlogItemRepository,
 		workspace:             workspace,
+		backlogActionRunner:   backlogActionRunner,
 	}
 }
 
@@ -142,4 +146,36 @@ func (s *Service) ListBacklogItems(
 	}
 
 	return items, nil
+}
+
+func (s *Service) RefineBacklogItem(
+	ctx context.Context,
+	projectName string,
+	backlogItemID string,
+) (*domain.BacklogItem, error) {
+	project, err := s.projectRepository.GetProjectByName(ctx, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("get project by name: %w", err)
+	}
+
+	item, err := s.backlogItemRepository.GetBacklogItem(ctx, backlogItemID)
+	if err != nil {
+		return nil, fmt.Errorf("get backlog item: %w", err)
+	}
+
+	if item.ProjectID() != project.ID() {
+		return nil, repository.ErrBacklogItemNotFound
+	}
+
+	projectDir, err := s.workspace.ProjectDir(ctx, project)
+	if err != nil {
+		return nil, fmt.Errorf("get project directory: %w", err)
+	}
+
+	refinedItem, err := s.backlogActionRunner.RefineBacklogItem(ctx, projectDir, item)
+	if err != nil {
+		return nil, fmt.Errorf("refine backlog item: %w", err)
+	}
+
+	return refinedItem, nil
 }

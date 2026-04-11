@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/neatflowcv/worker/internal/app/flow"
@@ -13,10 +14,15 @@ type projectBacklogRefineCommand struct {
 }
 
 func (c *projectBacklogRefineCommand) Run(ctx context.Context, service *flow.Service, stdout io.Writer) error {
-	_ = c
-	_ = ctx
-	_ = service
-	_ = stdout
+	item, err := service.RefineBacklogItem(ctx, c.Project, c.ID)
+	if err != nil {
+		return fmt.Errorf("refine backlog item: %w", err)
+	}
 
-	return errNotImplemented
+	_, err = fmt.Fprintln(stdout, item.Description())
+	if err != nil {
+		return fmt.Errorf("write refined backlog item output: %w", err)
+	}
+
+	return nil
 }

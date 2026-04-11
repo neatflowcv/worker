@@ -10,6 +10,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/neatflowcv/worker/internal/app/flow"
 	projectbadger "github.com/neatflowcv/worker/internal/pkg/badger"
+	"github.com/neatflowcv/worker/internal/pkg/command"
 	"github.com/neatflowcv/worker/internal/pkg/local"
 )
 
@@ -31,11 +32,18 @@ func Run() error {
 		return fmt.Errorf("create workspace: %w", err)
 	}
 
+	backlogActionRunner := command.NewBacklogActionRunner()
+
 	return RunWithArgs(
 		context.Background(),
 		os.Args[1:],
 		os.Stdout,
-		flow.NewService(projectRepository, backlogItemRepository, projectWorkspace),
+		flow.NewService(
+			projectRepository,
+			backlogItemRepository,
+			projectWorkspace,
+			backlogActionRunner,
+		),
 	)
 }
 

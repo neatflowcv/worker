@@ -53,3 +53,21 @@ func (i *BacklogItem) Status() BacklogItemStatus {
 func (i *BacklogItem) OrderKey() string {
 	return i.orderKey
 }
+
+func (i *BacklogItem) SetDescription(description string) *BacklogItem {
+	item := i.clone()
+	item.description = description
+
+	return item
+}
+
+func (i *BacklogItem) clone() *BacklogItem {
+	return &BacklogItem{
+		id:          i.id,
+		projectID:   i.projectID,
+		title:       i.title,
+		description: i.description,
+		status:      i.status,
+		orderKey:    i.orderKey,
+	}
+}

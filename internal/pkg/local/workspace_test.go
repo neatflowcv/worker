@@ -41,6 +41,40 @@ func TestWorkspace_CreateWorkspace(t *testing.T) {
 	require.Equal(t, "worker\n", string(content))
 }
 
+func TestWorkspace_ProjectDir(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	rootDir := t.TempDir()
+	repositoryURL := createRepository(t)
+	project := domain.NewProject("project-1", "worker", repositoryURL)
+	workspace := local.NewWorkspace(rootDir)
+	err := workspace.CreateWorkspace(t.Context(), project)
+	require.NoError(t, err)
+
+	// Act
+	projectDir, err := workspace.ProjectDir(t.Context(), project)
+
+	// Assert
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(rootDir, "project-1", "main"), projectDir)
+}
+
+func TestWorkspace_ProjectDirReturnsErrorWhenWorkspaceDoesNotExist(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	workspace := local.NewWorkspace(t.TempDir())
+	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
+
+	// Act
+	projectDir, err := workspace.ProjectDir(t.Context(), project)
+
+	// Assert
+	require.Error(t, err)
+	require.Empty(t, projectDir)
+}
+
 func createRepository(t *testing.T) string {
 	t.Helper()
 
