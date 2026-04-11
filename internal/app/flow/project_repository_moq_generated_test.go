@@ -15,14 +15,14 @@ import (
 //
 //		// make and configure a mocked repository.ProjectRepository
 //		mockedProjectRepository := &ProjectRepositoryMock{
-//			CreateFunc: func(ctx context.Context, project *domain.Project) error {
-//				panic("mock out the Create method")
+//			CreateProjectFunc: func(ctx context.Context, project *domain.Project) error {
+//				panic("mock out the CreateProject method")
 //			},
-//			GetByNameFunc: func(ctx context.Context, name string) (*domain.Project, error) {
-//				panic("mock out the GetByName method")
+//			GetProjectByNameFunc: func(ctx context.Context, name string) (*domain.Project, error) {
+//				panic("mock out the GetProjectByName method")
 //			},
-//			ListFunc: func(ctx context.Context) ([]*domain.Project, error) {
-//				panic("mock out the List method")
+//			ListProjectsFunc: func(ctx context.Context) ([]*domain.Project, error) {
+//				panic("mock out the ListProjects method")
 //			},
 //		}
 //
@@ -31,46 +31,46 @@ import (
 //
 //	}
 type ProjectRepositoryMock struct {
-	// CreateFunc mocks the Create method.
-	CreateFunc func(ctx context.Context, project *domain.Project) error
+	// CreateProjectFunc mocks the CreateProject method.
+	CreateProjectFunc func(ctx context.Context, project *domain.Project) error
 
-	// GetByNameFunc mocks the GetByName method.
-	GetByNameFunc func(ctx context.Context, name string) (*domain.Project, error)
+	// GetProjectByNameFunc mocks the GetProjectByName method.
+	GetProjectByNameFunc func(ctx context.Context, name string) (*domain.Project, error)
 
-	// ListFunc mocks the List method.
-	ListFunc func(ctx context.Context) ([]*domain.Project, error)
+	// ListProjectsFunc mocks the ListProjects method.
+	ListProjectsFunc func(ctx context.Context) ([]*domain.Project, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// Create holds details about calls to the Create method.
-		Create []struct {
+		// CreateProject holds details about calls to the CreateProject method.
+		CreateProject []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Project is the project argument value.
 			Project *domain.Project
 		}
-		// GetByName holds details about calls to the GetByName method.
-		GetByName []struct {
+		// GetProjectByName holds details about calls to the GetProjectByName method.
+		GetProjectByName []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Name is the name argument value.
 			Name string
 		}
-		// List holds details about calls to the List method.
-		List []struct {
+		// ListProjects holds details about calls to the ListProjects method.
+		ListProjects []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
 	}
-	lockCreate    sync.RWMutex
-	lockGetByName sync.RWMutex
-	lockList      sync.RWMutex
+	lockCreateProject sync.RWMutex
+	lockGetProjectByName sync.RWMutex
+	lockListProjects     sync.RWMutex
 }
 
-// Create calls CreateFunc.
-func (mock *ProjectRepositoryMock) Create(ctx context.Context, project *domain.Project) error {
-	if mock.CreateFunc == nil {
-		panic("ProjectRepositoryMock.CreateFunc: method is nil but ProjectRepository.Create was just called")
+// CreateProject calls CreateProjectFunc.
+func (mock *ProjectRepositoryMock) CreateProject(ctx context.Context, project *domain.Project) error {
+	if mock.CreateProjectFunc == nil {
+		panic("ProjectRepositoryMock.CreateProjectFunc: method is nil but ProjectRepository.CreateProject was just called")
 	}
 	callInfo := struct {
 		Ctx     context.Context
@@ -79,17 +79,17 @@ func (mock *ProjectRepositoryMock) Create(ctx context.Context, project *domain.P
 		Ctx:     ctx,
 		Project: project,
 	}
-	mock.lockCreate.Lock()
-	mock.calls.Create = append(mock.calls.Create, callInfo)
-	mock.lockCreate.Unlock()
-	return mock.CreateFunc(ctx, project)
+	mock.lockCreateProject.Lock()
+	mock.calls.CreateProject = append(mock.calls.CreateProject, callInfo)
+	mock.lockCreateProject.Unlock()
+	return mock.CreateProjectFunc(ctx, project)
 }
 
-// CreateCalls gets all the calls that were made to Create.
+// CreateProjectCalls gets all the calls that were made to CreateProject.
 // Check the length with:
 //
-//	len(mockedProjectRepository.CreateCalls())
-func (mock *ProjectRepositoryMock) CreateCalls() []struct {
+//	len(mockedProjectRepository.CreateProjectCalls())
+func (mock *ProjectRepositoryMock) CreateProjectCalls() []struct {
 	Ctx     context.Context
 	Project *domain.Project
 } {
@@ -97,16 +97,16 @@ func (mock *ProjectRepositoryMock) CreateCalls() []struct {
 		Ctx     context.Context
 		Project *domain.Project
 	}
-	mock.lockCreate.RLock()
-	calls = mock.calls.Create
-	mock.lockCreate.RUnlock()
+	mock.lockCreateProject.RLock()
+	calls = mock.calls.CreateProject
+	mock.lockCreateProject.RUnlock()
 	return calls
 }
 
-// GetByName calls GetByNameFunc.
-func (mock *ProjectRepositoryMock) GetByName(ctx context.Context, name string) (*domain.Project, error) {
-	if mock.GetByNameFunc == nil {
-		panic("ProjectRepositoryMock.GetByNameFunc: method is nil but ProjectRepository.GetByName was just called")
+// GetProjectByName calls GetProjectByNameFunc.
+func (mock *ProjectRepositoryMock) GetProjectByName(ctx context.Context, name string) (*domain.Project, error) {
+	if mock.GetProjectByNameFunc == nil {
+		panic("ProjectRepositoryMock.GetProjectByNameFunc: method is nil but ProjectRepository.GetProjectByName was just called")
 	}
 	callInfo := struct {
 		Ctx  context.Context
@@ -115,17 +115,17 @@ func (mock *ProjectRepositoryMock) GetByName(ctx context.Context, name string) (
 		Ctx:  ctx,
 		Name: name,
 	}
-	mock.lockGetByName.Lock()
-	mock.calls.GetByName = append(mock.calls.GetByName, callInfo)
-	mock.lockGetByName.Unlock()
-	return mock.GetByNameFunc(ctx, name)
+	mock.lockGetProjectByName.Lock()
+	mock.calls.GetProjectByName = append(mock.calls.GetProjectByName, callInfo)
+	mock.lockGetProjectByName.Unlock()
+	return mock.GetProjectByNameFunc(ctx, name)
 }
 
-// GetByNameCalls gets all the calls that were made to GetByName.
+// GetProjectByNameCalls gets all the calls that were made to GetProjectByName.
 // Check the length with:
 //
-//	len(mockedProjectRepository.GetByNameCalls())
-func (mock *ProjectRepositoryMock) GetByNameCalls() []struct {
+//	len(mockedProjectRepository.GetProjectByNameCalls())
+func (mock *ProjectRepositoryMock) GetProjectByNameCalls() []struct {
 	Ctx  context.Context
 	Name string
 } {
@@ -133,40 +133,40 @@ func (mock *ProjectRepositoryMock) GetByNameCalls() []struct {
 		Ctx  context.Context
 		Name string
 	}
-	mock.lockGetByName.RLock()
-	calls = mock.calls.GetByName
-	mock.lockGetByName.RUnlock()
+	mock.lockGetProjectByName.RLock()
+	calls = mock.calls.GetProjectByName
+	mock.lockGetProjectByName.RUnlock()
 	return calls
 }
 
-// List calls ListFunc.
-func (mock *ProjectRepositoryMock) List(ctx context.Context) ([]*domain.Project, error) {
-	if mock.ListFunc == nil {
-		panic("ProjectRepositoryMock.ListFunc: method is nil but ProjectRepository.List was just called")
+// ListProjects calls ListProjectsFunc.
+func (mock *ProjectRepositoryMock) ListProjects(ctx context.Context) ([]*domain.Project, error) {
+	if mock.ListProjectsFunc == nil {
+		panic("ProjectRepositoryMock.ListProjectsFunc: method is nil but ProjectRepository.ListProjects was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
 	}{
 		Ctx: ctx,
 	}
-	mock.lockList.Lock()
-	mock.calls.List = append(mock.calls.List, callInfo)
-	mock.lockList.Unlock()
-	return mock.ListFunc(ctx)
+	mock.lockListProjects.Lock()
+	mock.calls.ListProjects = append(mock.calls.ListProjects, callInfo)
+	mock.lockListProjects.Unlock()
+	return mock.ListProjectsFunc(ctx)
 }
 
-// ListCalls gets all the calls that were made to List.
+// ListProjectsCalls gets all the calls that were made to ListProjects.
 // Check the length with:
 //
-//	len(mockedProjectRepository.ListCalls())
-func (mock *ProjectRepositoryMock) ListCalls() []struct {
+//	len(mockedProjectRepository.ListProjectsCalls())
+func (mock *ProjectRepositoryMock) ListProjectsCalls() []struct {
 	Ctx context.Context
 } {
 	var calls []struct {
 		Ctx context.Context
 	}
-	mock.lockList.RLock()
-	calls = mock.calls.List
-	mock.lockList.RUnlock()
+	mock.lockListProjects.RLock()
+	calls = mock.calls.ListProjects
+	mock.lockListProjects.RUnlock()
 	return calls
 }

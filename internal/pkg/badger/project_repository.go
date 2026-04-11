@@ -32,7 +32,7 @@ func NewProjectRepository(database *Database) *ProjectRepository {
 	}
 }
 
-func (r *ProjectRepository) Create(ctx context.Context, project *domain.Project) error {
+func (r *ProjectRepository) CreateProject(ctx context.Context, project *domain.Project) error {
 	record := projectRecord{
 		ID:            project.ID(),
 		Name:          project.Name(),
@@ -70,7 +70,7 @@ func (r *ProjectRepository) Create(ctx context.Context, project *domain.Project)
 	return nil
 }
 
-func (r *ProjectRepository) List(ctx context.Context) ([]*domain.Project, error) {
+func (r *ProjectRepository) ListProjects(ctx context.Context) ([]*domain.Project, error) {
 	projects := make([]*domain.Project, 0)
 
 	err := r.db.View(func(txn *badgerdb.Txn) error {
@@ -120,7 +120,7 @@ func (r *ProjectRepository) List(ctx context.Context) ([]*domain.Project, error)
 	return projects, nil
 }
 
-func (r *ProjectRepository) GetByName(ctx context.Context, name string) (*domain.Project, error) {
+func (r *ProjectRepository) GetProjectByName(ctx context.Context, name string) (*domain.Project, error) {
 	project, err := r.loadProjectByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, repository.ErrProjectNotFound) {

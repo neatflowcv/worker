@@ -16,7 +16,7 @@ func TestProjectRepository_ListReturnsZeroProjects(t *testing.T) {
 	repo := newProjectRepository(t)
 
 	// Act
-	projects, err := repo.List(t.Context())
+	projects, err := repo.ListProjects(t.Context())
 
 	// Assert
 	require.NoError(t, err)
@@ -32,15 +32,15 @@ func TestProjectRepository_CreatePersistsProject(t *testing.T) {
 	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
 
 	// Act
-	err := repo.Create(t.Context(), project)
+	err := repo.CreateProject(t.Context(), project)
 	require.NoError(t, err)
 	require.NoError(t, database.Close())
 
 	reopened, _ := newProjectRepositoryAt(t, dir)
-	projects, err := reopened.List(t.Context())
+	projects, err := reopened.ListProjects(t.Context())
 	require.NoError(t, err)
 
-	projectByName, err := reopened.GetByName(t.Context(), "worker")
+	projectByName, err := reopened.GetProjectByName(t.Context(), "worker")
 
 	// Assert
 	require.NoError(t, err)
@@ -62,11 +62,11 @@ func TestProjectRepository_ListReturnsTwoProjects(t *testing.T) {
 	first := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
 	second := domain.NewProject("project-2", "worker-docs", "https://github.com/neatflowcv/docs.git")
 
-	require.NoError(t, repo.Create(t.Context(), first))
-	require.NoError(t, repo.Create(t.Context(), second))
+	require.NoError(t, repo.CreateProject(t.Context(), first))
+	require.NoError(t, repo.CreateProject(t.Context(), second))
 
 	// Act
-	projects, err := repo.List(t.Context())
+	projects, err := repo.ListProjects(t.Context())
 
 	// Assert
 	require.NoError(t, err)
@@ -87,11 +87,11 @@ func TestProjectRepository_GetByNameReturnsProject(t *testing.T) {
 	first := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
 	second := domain.NewProject("project-2", "worker-docs", "https://github.com/neatflowcv/docs.git")
 
-	require.NoError(t, repo.Create(t.Context(), first))
-	require.NoError(t, repo.Create(t.Context(), second))
+	require.NoError(t, repo.CreateProject(t.Context(), first))
+	require.NoError(t, repo.CreateProject(t.Context(), second))
 
 	// Act
-	project, err := repo.GetByName(t.Context(), "worker-docs")
+	project, err := repo.GetProjectByName(t.Context(), "worker-docs")
 
 	// Assert
 	require.NoError(t, err)
@@ -108,10 +108,10 @@ func TestProjectRepository_GetByNameReturnsNilWhenMissing(t *testing.T) {
 	repo := newProjectRepository(t)
 	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
 
-	require.NoError(t, repo.Create(t.Context(), project))
+	require.NoError(t, repo.CreateProject(t.Context(), project))
 
 	// Act
-	actual, err := repo.GetByName(t.Context(), "missing")
+	actual, err := repo.GetProjectByName(t.Context(), "missing")
 
 	// Assert
 	require.ErrorIs(t, err, repository.ErrProjectNotFound)

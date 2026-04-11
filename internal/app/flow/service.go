@@ -34,7 +34,7 @@ func NewService(
 }
 
 func (s *Service) CreateProject(ctx context.Context, name, url string) (*domain.Project, error) {
-	_, err := s.projectRepository.GetByName(ctx, name)
+	_, err := s.projectRepository.GetProjectByName(ctx, name)
 	if err == nil {
 		return nil, ErrProjectAlreadyExists
 	}
@@ -50,7 +50,7 @@ func (s *Service) CreateProject(ctx context.Context, name, url string) (*domain.
 		return nil, fmt.Errorf("create workspace: %w", err)
 	}
 
-	err = s.projectRepository.Create(ctx, project)
+	err = s.projectRepository.CreateProject(ctx, project)
 	if err != nil {
 		return nil, fmt.Errorf("create project: %w", err)
 	}
@@ -59,7 +59,7 @@ func (s *Service) CreateProject(ctx context.Context, name, url string) (*domain.
 }
 
 func (s *Service) ListProjects(ctx context.Context) ([]*domain.Project, error) {
-	projects, err := s.projectRepository.List(ctx)
+	projects, err := s.projectRepository.ListProjects(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
 	}
@@ -73,7 +73,7 @@ func (s *Service) CreateBacklogItem(
 	title string,
 	description string,
 ) (*domain.BacklogItem, error) {
-	project, err := s.projectRepository.GetByName(ctx, projectName)
+	project, err := s.projectRepository.GetProjectByName(ctx, projectName)
 	if err != nil {
 		return nil, fmt.Errorf("get project by name: %w", err)
 	}
@@ -99,7 +99,7 @@ func (s *Service) GetBacklogItem(
 	projectName string,
 	backlogItemID string,
 ) (*domain.BacklogItem, error) {
-	project, err := s.projectRepository.GetByName(ctx, projectName)
+	project, err := s.projectRepository.GetProjectByName(ctx, projectName)
 	if err != nil {
 		return nil, fmt.Errorf("get project by name: %w", err)
 	}
@@ -122,7 +122,7 @@ func (s *Service) ListBacklogItems(
 	afterID string,
 	limit int,
 ) ([]*domain.BacklogItem, error) {
-	project, err := s.projectRepository.GetByName(ctx, projectName)
+	project, err := s.projectRepository.GetProjectByName(ctx, projectName)
 	if err != nil {
 		return nil, fmt.Errorf("get project by name: %w", err)
 	}

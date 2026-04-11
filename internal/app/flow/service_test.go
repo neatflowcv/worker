@@ -19,10 +19,10 @@ func TestService_CreateProject(t *testing.T) {
 	var createdProject *domain.Project
 
 	projectRepository := newProjectRepositoryMock()
-	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return nil, repository.ErrProjectNotFound
 	}
-	projectRepository.CreateFunc = func(_ context.Context, project *domain.Project) error {
+	projectRepository.CreateProjectFunc = func(_ context.Context, project *domain.Project) error {
 		createdProject = project
 
 		return nil
@@ -39,8 +39,8 @@ func TestService_CreateProject(t *testing.T) {
 	require.Equal(t, "worker", project.Name())
 	require.Equal(t, "https://github.com/neatflowcv/worker.git", project.RepositoryURL())
 	require.Same(t, project, createdProject)
-	require.Len(t, projectRepository.GetByNameCalls(), 1)
-	require.Len(t, projectRepository.CreateCalls(), 1)
+	require.Len(t, projectRepository.GetProjectByNameCalls(), 1)
+	require.Len(t, projectRepository.CreateProjectCalls(), 1)
 	require.Len(t, workspace.CreateWorkspaceCalls(), 1)
 
 	_, err = ulid.Parse(project.ID())
@@ -53,7 +53,7 @@ func TestService_CreateProjectReturnsErrorWhenNameAlreadyExists(t *testing.T) {
 	// Arrange
 	existingProject := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
 	projectRepository := newProjectRepositoryMock()
-	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return existingProject, nil
 	}
 	workspace := newWorkspaceMock()
@@ -65,8 +65,8 @@ func TestService_CreateProjectReturnsErrorWhenNameAlreadyExists(t *testing.T) {
 	// Assert
 	require.ErrorIs(t, err, flow.ErrProjectAlreadyExists)
 	require.Nil(t, project)
-	require.Len(t, projectRepository.GetByNameCalls(), 1)
-	require.Empty(t, projectRepository.CreateCalls())
+	require.Len(t, projectRepository.GetProjectByNameCalls(), 1)
+	require.Empty(t, projectRepository.CreateProjectCalls())
 	require.Empty(t, workspace.CreateWorkspaceCalls())
 }
 
@@ -78,7 +78,7 @@ func TestService_ListProjects(t *testing.T) {
 		domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"),
 	}
 	projectRepository := newProjectRepositoryMock()
-	projectRepository.ListFunc = func(_ context.Context) ([]*domain.Project, error) {
+	projectRepository.ListProjectsFunc = func(_ context.Context) ([]*domain.Project, error) {
 		return expectedProjects, nil
 	}
 	service := flow.NewService(projectRepository, nil, newWorkspaceMock())
@@ -89,7 +89,7 @@ func TestService_ListProjects(t *testing.T) {
 	// Assert
 	require.NoError(t, err)
 	require.Equal(t, expectedProjects, projects)
-	require.Len(t, projectRepository.ListCalls(), 1)
+	require.Len(t, projectRepository.ListProjectsCalls(), 1)
 }
 
 func TestService_CreateBacklogItem(t *testing.T) {
@@ -97,7 +97,7 @@ func TestService_CreateBacklogItem(t *testing.T) {
 
 	// Arrange
 	projectRepository := newProjectRepositoryMock()
-	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
@@ -128,7 +128,7 @@ func TestService_CreateBacklogItemReturnsErrorWhenProjectDoesNotExist(t *testing
 
 	// Arrange
 	projectRepository := newProjectRepositoryMock()
-	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return nil, repository.ErrProjectNotFound
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
@@ -148,7 +148,7 @@ func TestService_CreateBacklogItemReturnsErrorWhenRepositoryFails(t *testing.T) 
 
 	// Arrange
 	projectRepository := newProjectRepositoryMock()
-	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
@@ -171,7 +171,7 @@ func TestService_GetBacklogItem(t *testing.T) {
 	// Arrange
 	expectedItem := domain.NewBacklogItem("backlog-1", "project-1", "First", "desc", "000000000001")
 	projectRepository := newProjectRepositoryMock()
-	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
@@ -195,7 +195,7 @@ func TestService_GetBacklogItemReturnsErrorWhenProjectDoesNotExist(t *testing.T)
 
 	// Arrange
 	projectRepository := newProjectRepositoryMock()
-	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return nil, repository.ErrProjectNotFound
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
@@ -215,7 +215,7 @@ func TestService_GetBacklogItemReturnsErrorWhenBacklogItemBelongsToAnotherProjec
 
 	// Arrange
 	projectRepository := newProjectRepositoryMock()
-	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
@@ -237,7 +237,7 @@ func TestService_GetBacklogItemReturnsErrorWhenRepositoryFails(t *testing.T) {
 
 	// Arrange
 	projectRepository := newProjectRepositoryMock()
-	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
@@ -263,7 +263,7 @@ func TestService_ListBacklogItems(t *testing.T) {
 		domain.NewBacklogItem("backlog-3", "project-1", "Third", "", "000000000003"),
 	}
 	projectRepository := newProjectRepositoryMock()
-	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
@@ -293,7 +293,7 @@ func TestService_ListBacklogItemsAppliesDefaultLimit(t *testing.T) {
 
 	// Arrange
 	projectRepository := newProjectRepositoryMock()
-	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
@@ -314,7 +314,7 @@ func TestService_ListBacklogItemsReturnsErrorWhenProjectDoesNotExist(t *testing.
 
 	// Arrange
 	projectRepository := newProjectRepositoryMock()
-	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return nil, repository.ErrProjectNotFound
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
@@ -334,7 +334,7 @@ func TestService_ListBacklogItemsReturnsErrorWhenRepositoryFails(t *testing.T) {
 
 	// Arrange
 	projectRepository := newProjectRepositoryMock()
-	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
@@ -359,13 +359,13 @@ func TestService_ListBacklogItemsReturnsErrorWhenRepositoryFails(t *testing.T) {
 func newProjectRepositoryMock() *ProjectRepositoryMock {
 	var mock ProjectRepositoryMock
 
-	mock.CreateFunc = func(_ context.Context, _ *domain.Project) error {
+	mock.CreateProjectFunc = func(_ context.Context, _ *domain.Project) error {
 		return nil
 	}
-	mock.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+	mock.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return nil, repository.ErrProjectNotFound
 	}
-	mock.ListFunc = func(_ context.Context) ([]*domain.Project, error) {
+	mock.ListProjectsFunc = func(_ context.Context) ([]*domain.Project, error) {
 		return nil, nil
 	}
 
