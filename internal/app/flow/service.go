@@ -82,13 +82,16 @@ func (s *Service) CreateBacklogItem(
 		return nil, fmt.Errorf("get project by name: %w", err)
 	}
 
-	item := domain.NewBacklogItem(
+	item, err := domain.NewBacklogItem(
 		ulid.Make().String(),
 		project.ID(),
 		title,
 		description,
 		"",
 	)
+	if err != nil {
+		return nil, fmt.Errorf("new backlog item: %w", err)
+	}
 
 	err = s.backlogItemRepository.CreateBacklogItem(ctx, item)
 	if err != nil {

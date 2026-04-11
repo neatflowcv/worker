@@ -1,5 +1,7 @@
 package domain
 
+import "errors"
+
 type BacklogItemStatus string
 
 const (
@@ -19,7 +21,15 @@ type BacklogItem struct {
 	orderKey string
 }
 
-func NewBacklogItem(id, projectID, title, description, orderKey string) *BacklogItem {
+var ErrBacklogItemTitleRequired = errors.New("backlog item title is required")
+
+func NewBacklogItem(
+	id, projectID, title, description, orderKey string,
+) (*BacklogItem, error) {
+	if title == "" {
+		return nil, ErrBacklogItemTitleRequired
+	}
+
 	return &BacklogItem{
 		id:          id,
 		projectID:   projectID,
@@ -27,7 +37,7 @@ func NewBacklogItem(id, projectID, title, description, orderKey string) *Backlog
 		description: description,
 		status:      BacklogItemStatusOpen,
 		orderKey:    orderKey,
-	}
+	}, nil
 }
 
 func (i *BacklogItem) ID() string {
@@ -59,6 +69,17 @@ func (i *BacklogItem) SetDescription(description string) *BacklogItem {
 	item.description = description
 
 	return item
+}
+
+func (i *BacklogItem) SetTitle(title string) (*BacklogItem, error) {
+	if title == "" {
+		return nil, ErrBacklogItemTitleRequired
+	}
+
+	item := i.clone()
+	item.title = title
+
+	return item, nil
 }
 
 func (i *BacklogItem) clone() *BacklogItem {

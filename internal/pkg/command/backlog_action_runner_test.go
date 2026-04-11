@@ -19,7 +19,14 @@ func TestNewBacklogActionRunnerWithRunnerRefineBacklogItem(t *testing.T) {
 
 	// Arrange
 	projectDir := t.TempDir()
-	item := domain.NewBacklogItem("backlog-1", "project-1", "Refine title", "original body", "001")
+	item := mustNewBacklogItem(
+		t,
+		"backlog-1",
+		"project-1",
+		"Refine title",
+		"original body",
+		"001",
+	)
 
 	var (
 		gotDir    string
@@ -66,7 +73,14 @@ func TestNewBacklogActionRunnerWithRunnerReturnsErrorWhenRunnerFails(t *testing.
 
 	// Arrange
 	projectDir := t.TempDir()
-	item := domain.NewBacklogItem("backlog-1", "project-1", "Refine title", "original body", "001")
+	item := mustNewBacklogItem(
+		t,
+		"backlog-1",
+		"project-1",
+		"Refine title",
+		"original body",
+		"001",
+	)
 	actionRunner := command.NewBacklogActionRunnerWithRunner(
 		runnerFunc(func(_ context.Context, _ string, _ string) error {
 			return errRunner
@@ -86,7 +100,7 @@ func TestNewBacklogActionRunnerWithRunnerBuildsDraftPromptWhenDescriptionIsEmpty
 
 	// Arrange
 	projectDir := t.TempDir()
-	item := domain.NewBacklogItem("backlog-1", "project-1", "Draft title", "", "001")
+	item := mustNewBacklogItem(t, "backlog-1", "project-1", "Draft title", "", "001")
 
 	var gotPrompt string
 
@@ -123,4 +137,20 @@ type runnerFunc func(ctx context.Context, dir string, prompt string) error
 
 func (f runnerFunc) Run(ctx context.Context, dir string, prompt string) error {
 	return f(ctx, dir, prompt)
+}
+
+func mustNewBacklogItem(
+	t *testing.T,
+	id string,
+	projectID string,
+	title string,
+	description string,
+	orderKey string,
+) *domain.BacklogItem {
+	t.Helper()
+
+	item, err := domain.NewBacklogItem(id, projectID, title, description, orderKey)
+	require.NoError(t, err)
+
+	return item
 }

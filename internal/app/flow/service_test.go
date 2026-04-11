@@ -170,7 +170,7 @@ func TestService_GetBacklogItem(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
-	expectedItem := domain.NewBacklogItem("backlog-1", "project-1", "First", "desc", "000000000001")
+	expectedItem := mustNewBacklogItem(t, "backlog-1", "project-1", "First", "desc", "000000000001")
 	projectRepository := newProjectRepositoryMock()
 	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
 		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
@@ -221,7 +221,7 @@ func TestService_GetBacklogItemReturnsErrorWhenBacklogItemBelongsToAnotherProjec
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
 	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
-		return domain.NewBacklogItem("backlog-1", "project-2", "First", "desc", "000000000001"), nil
+		return mustNewBacklogItem(t, "backlog-1", "project-2", "First", "desc", "000000000001"), nil
 	}
 	service := flow.NewService(projectRepository, backlogItemRepository, newWorkspaceMock(), nil)
 
@@ -260,8 +260,8 @@ func TestService_ListBacklogItems(t *testing.T) {
 
 	// Arrange
 	expectedItems := []*domain.BacklogItem{
-		domain.NewBacklogItem("backlog-2", "project-1", "Second", "", "000000000002"),
-		domain.NewBacklogItem("backlog-3", "project-1", "Third", "", "000000000003"),
+		mustNewBacklogItem(t, "backlog-2", "project-1", "Second", "", "000000000002"),
+		mustNewBacklogItem(t, "backlog-3", "project-1", "Third", "", "000000000003"),
 	}
 	projectRepository := newProjectRepositoryMock()
 	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
@@ -362,7 +362,8 @@ func TestService_RefineBacklogItem(t *testing.T) {
 
 	// Arrange
 	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
-	backlogItem := domain.NewBacklogItem(
+	backlogItem := mustNewBacklogItem(
+		t,
 		"backlog-1",
 		"project-1",
 		"First",
@@ -424,7 +425,7 @@ func TestService_RefineBacklogItemReturnsErrorWhenProjectDirFails(t *testing.T) 
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
 	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
-		return domain.NewBacklogItem("backlog-1", "project-1", "First", "desc", "000000000001"), nil
+		return mustNewBacklogItem(t, "backlog-1", "project-1", "First", "desc", "000000000001"), nil
 	}
 	workspace := newWorkspaceMock()
 	workspace.ProjectDirFunc = func(_ context.Context, _ *domain.Project) (string, error) {
@@ -452,7 +453,7 @@ func TestService_RefineBacklogItemReturnsErrorWhenExecutorFails(t *testing.T) {
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
 	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
-		return domain.NewBacklogItem("backlog-1", "project-1", "First", "desc", "000000000001"), nil
+		return mustNewBacklogItem(t, "backlog-1", "project-1", "First", "desc", "000000000001"), nil
 	}
 	workspace := newWorkspaceMock()
 	executor := newBacklogActionRunnerMock()
@@ -483,7 +484,7 @@ func TestService_RefineBacklogItemReturnsErrorWhenBacklogItemBelongsToAnotherPro
 	}
 	backlogItemRepository := newBacklogItemRepositoryMock()
 	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
-		return domain.NewBacklogItem("backlog-1", "project-2", "First", "desc", "000000000001"), nil
+		return mustNewBacklogItem(t, "backlog-1", "project-2", "First", "desc", "000000000001"), nil
 	}
 	workspace := newWorkspaceMock()
 	executor := newBacklogActionRunnerMock()
@@ -602,6 +603,22 @@ func newWorkspaceMock() *WorkspaceMock {
 var errBacklogItemRepository = errors.New("backlog item repository error")
 var errBacklogRefineExecutor = errors.New("backlog refine executor error")
 var errWorkspace = errors.New("workspace error")
+
+func mustNewBacklogItem(
+	t *testing.T,
+	id string,
+	projectID string,
+	title string,
+	description string,
+	orderKey string,
+) *domain.BacklogItem {
+	t.Helper()
+
+	item, err := domain.NewBacklogItem(id, projectID, title, description, orderKey)
+	require.NoError(t, err)
+
+	return item
+}
 
 func newBacklogActionRunnerMock() *BacklogActionRunnerMock {
 	var mock BacklogActionRunnerMock

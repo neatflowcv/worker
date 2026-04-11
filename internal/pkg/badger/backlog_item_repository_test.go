@@ -19,7 +19,7 @@ func TestProjectRepository_CreateBacklogItemPersistsBacklogItem(t *testing.T) {
 	// Act
 	err := repo.CreateBacklogItem(
 		t.Context(),
-		domain.NewBacklogItem("backlog-1", "project-1", "First", "desc", ""),
+		mustNewBacklogItem(t, "backlog-1", "project-1", "First", "desc", ""),
 	)
 	require.NoError(t, err)
 	require.NoError(t, database.Close())
@@ -46,7 +46,7 @@ func TestProjectRepository_GetBacklogItemReturnsPersistedItem(t *testing.T) {
 		t,
 		repo.CreateBacklogItem(
 			t.Context(),
-			domain.NewBacklogItem("backlog-1", "project-1", "First", "desc", "000000000001"),
+			mustNewBacklogItem(t, "backlog-1", "project-1", "First", "desc", "000000000001"),
 		),
 	)
 
@@ -85,21 +85,21 @@ func TestProjectRepository_ListBacklogItemsReturnsItemsInOrderKeyOrder(t *testin
 		t,
 		repo.CreateBacklogItem(
 			t.Context(),
-			domain.NewBacklogItem("backlog-2", "project-1", "Second", "", "000000000002"),
+			mustNewBacklogItem(t, "backlog-2", "project-1", "Second", "", "000000000002"),
 		),
 	)
 	require.NoError(
 		t,
 		repo.CreateBacklogItem(
 			t.Context(),
-			domain.NewBacklogItem("backlog-1", "project-1", "First", "", "000000000001"),
+			mustNewBacklogItem(t, "backlog-1", "project-1", "First", "", "000000000001"),
 		),
 	)
 	require.NoError(
 		t,
 		repo.CreateBacklogItem(
 			t.Context(),
-			domain.NewBacklogItem("backlog-3", "project-1", "Third", "", "000000000003"),
+			mustNewBacklogItem(t, "backlog-3", "project-1", "Third", "", "000000000003"),
 		),
 	)
 
@@ -123,21 +123,21 @@ func TestProjectRepository_ListBacklogItemsRespectsAfterIDAndLimit(t *testing.T)
 		t,
 		repo.CreateBacklogItem(
 			t.Context(),
-			domain.NewBacklogItem("backlog-1", "project-1", "First", "", "000000000001"),
+			mustNewBacklogItem(t, "backlog-1", "project-1", "First", "", "000000000001"),
 		),
 	)
 	require.NoError(
 		t,
 		repo.CreateBacklogItem(
 			t.Context(),
-			domain.NewBacklogItem("backlog-2", "project-1", "Second", "", "000000000002"),
+			mustNewBacklogItem(t, "backlog-2", "project-1", "Second", "", "000000000002"),
 		),
 	)
 	require.NoError(
 		t,
 		repo.CreateBacklogItem(
 			t.Context(),
-			domain.NewBacklogItem("backlog-3", "project-1", "Third", "", "000000000003"),
+			mustNewBacklogItem(t, "backlog-3", "project-1", "Third", "", "000000000003"),
 		),
 	)
 
@@ -159,7 +159,7 @@ func TestProjectRepository_ListBacklogItemsReturnsErrorWhenAfterIDIsMissing(t *t
 		t,
 		repo.CreateBacklogItem(
 			t.Context(),
-			domain.NewBacklogItem("backlog-1", "project-1", "First", "", ""),
+			mustNewBacklogItem(t, "backlog-1", "project-1", "First", "", ""),
 		),
 	)
 
@@ -180,14 +180,14 @@ func TestProjectRepository_ListBacklogItemsReturnsErrorWhenAfterIDBelongsToAnoth
 		t,
 		repo.CreateBacklogItem(
 			t.Context(),
-			domain.NewBacklogItem("backlog-1", "project-1", "First", "", ""),
+			mustNewBacklogItem(t, "backlog-1", "project-1", "First", "", ""),
 		),
 	)
 	require.NoError(
 		t,
 		repo.CreateBacklogItem(
 			t.Context(),
-			domain.NewBacklogItem("backlog-2", "project-2", "Second", "", ""),
+			mustNewBacklogItem(t, "backlog-2", "project-2", "Second", "", ""),
 		),
 	)
 
@@ -221,4 +221,20 @@ func newBacklogItemRepositoryAt(
 	})
 
 	return badger.NewBacklogItemRepository(database), database
+}
+
+func mustNewBacklogItem(
+	t *testing.T,
+	id string,
+	projectID string,
+	title string,
+	description string,
+	orderKey string,
+) *domain.BacklogItem {
+	t.Helper()
+
+	item, err := domain.NewBacklogItem(id, projectID, title, description, orderKey)
+	require.NoError(t, err)
+
+	return item
 }

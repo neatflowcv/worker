@@ -248,13 +248,16 @@ func readBacklogItem(txn *badgerdb.Txn, id string) (*domain.BacklogItem, error) 
 			return fmt.Errorf("unmarshal backlog item record: %w", err)
 		}
 
-		backlogItem = domain.NewBacklogItem(
+		backlogItem, err = domain.NewBacklogItem(
 			record.ID,
 			record.ProjectID,
 			record.Title,
 			record.Description,
 			record.OrderKey,
 		)
+		if err != nil {
+			return fmt.Errorf("new backlog item: %w", err)
+		}
 
 		return nil
 	})
