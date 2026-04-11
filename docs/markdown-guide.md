@@ -17,7 +17,7 @@
 마크다운을 수정한 뒤에는 반드시 전체 마크다운 파일에 대해 린트를 실행합니다.
 
 ```bash
-markdownlint-cli2 "**/*.md" "!vendor/**"
+bunx -bun markdownlint-cli2 "**/*.md" "!vendor/**"
 ```
 
 `vendor` 디렉토리는 검사 대상에서 제외합니다.
