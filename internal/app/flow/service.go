@@ -151,6 +151,47 @@ func (s *Service) ListBacklogItems(
 	return items, nil
 }
 
+func (s *Service) UpdateBacklogItem(
+	ctx context.Context,
+	projectName string,
+	backlogItemID string,
+	title *string,
+	description *string,
+) (*domain.BacklogItem, error) {
+	project, err := s.projectRepository.GetProjectByName(ctx, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("get project by name: %w", err)
+	}
+
+	item, err := s.backlogItemRepository.GetBacklogItem(ctx, backlogItemID)
+	if err != nil {
+		return nil, fmt.Errorf("get backlog item: %w", err)
+	}
+
+	if item.ProjectID() != project.ID() {
+		return nil, repository.ErrBacklogItemNotFound
+	}
+
+	updatedItem := item
+	if title != nil {
+		updatedItem, err = updatedItem.SetTitle(*title)
+		if err != nil {
+			return nil, fmt.Errorf("set backlog item title: %w", err)
+		}
+	}
+
+	if description != nil {
+		updatedItem = updatedItem.SetDescription(*description)
+	}
+
+	err = s.backlogItemRepository.UpdateBacklogItem(ctx, updatedItem)
+	if err != nil {
+		return nil, fmt.Errorf("update backlog item repository: %w", err)
+	}
+
+	return updatedItem, nil
+}
+
 func (s *Service) RefineBacklogItem(
 	ctx context.Context,
 	projectName string,

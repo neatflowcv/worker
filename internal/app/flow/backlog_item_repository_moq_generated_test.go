@@ -24,6 +24,9 @@ import (
 //			ListBacklogItemsFunc: func(ctx context.Context, projectID string, afterID string, limit int) ([]*domain.BacklogItem, error) {
 //				panic("mock out the ListBacklogItems method")
 //			},
+//			UpdateBacklogItemFunc: func(ctx context.Context, item *domain.BacklogItem) error {
+//				panic("mock out the UpdateBacklogItem method")
+//			},
 //		}
 //
 //		// use mockedBacklogItemRepository in code that requires repository.BacklogItemRepository
@@ -39,6 +42,9 @@ type BacklogItemRepositoryMock struct {
 
 	// ListBacklogItemsFunc mocks the ListBacklogItems method.
 	ListBacklogItemsFunc func(ctx context.Context, projectID string, afterID string, limit int) ([]*domain.BacklogItem, error)
+
+	// UpdateBacklogItemFunc mocks the UpdateBacklogItem method.
+	UpdateBacklogItemFunc func(ctx context.Context, item *domain.BacklogItem) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -67,10 +73,18 @@ type BacklogItemRepositoryMock struct {
 			// Limit is the limit argument value.
 			Limit int
 		}
+		// UpdateBacklogItem holds details about calls to the UpdateBacklogItem method.
+		UpdateBacklogItem []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Item is the item argument value.
+			Item *domain.BacklogItem
+		}
 	}
 	lockCreateBacklogItem sync.RWMutex
 	lockGetBacklogItem    sync.RWMutex
 	lockListBacklogItems  sync.RWMutex
+	lockUpdateBacklogItem sync.RWMutex
 }
 
 // CreateBacklogItem calls CreateBacklogItemFunc.
@@ -186,5 +200,41 @@ func (mock *BacklogItemRepositoryMock) ListBacklogItemsCalls() []struct {
 	mock.lockListBacklogItems.RLock()
 	calls = mock.calls.ListBacklogItems
 	mock.lockListBacklogItems.RUnlock()
+	return calls
+}
+
+// UpdateBacklogItem calls UpdateBacklogItemFunc.
+func (mock *BacklogItemRepositoryMock) UpdateBacklogItem(ctx context.Context, item *domain.BacklogItem) error {
+	if mock.UpdateBacklogItemFunc == nil {
+		panic("BacklogItemRepositoryMock.UpdateBacklogItemFunc: method is nil but BacklogItemRepository.UpdateBacklogItem was just called")
+	}
+	callInfo := struct {
+		Ctx  context.Context
+		Item *domain.BacklogItem
+	}{
+		Ctx:  ctx,
+		Item: item,
+	}
+	mock.lockUpdateBacklogItem.Lock()
+	mock.calls.UpdateBacklogItem = append(mock.calls.UpdateBacklogItem, callInfo)
+	mock.lockUpdateBacklogItem.Unlock()
+	return mock.UpdateBacklogItemFunc(ctx, item)
+}
+
+// UpdateBacklogItemCalls gets all the calls that were made to UpdateBacklogItem.
+// Check the length with:
+//
+//	len(mockedBacklogItemRepository.UpdateBacklogItemCalls())
+func (mock *BacklogItemRepositoryMock) UpdateBacklogItemCalls() []struct {
+	Ctx  context.Context
+	Item *domain.BacklogItem
+} {
+	var calls []struct {
+		Ctx  context.Context
+		Item *domain.BacklogItem
+	}
+	mock.lockUpdateBacklogItem.RLock()
+	calls = mock.calls.UpdateBacklogItem
+	mock.lockUpdateBacklogItem.RUnlock()
 	return calls
 }

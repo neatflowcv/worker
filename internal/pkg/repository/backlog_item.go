@@ -19,4 +19,5 @@ type BacklogItemRepository interface {
 		afterID string,
 		limit int,
 	) ([]*domain.BacklogItem, error)
+	UpdateBacklogItem(ctx context.Context, item *domain.BacklogItem) error
 }

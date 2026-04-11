@@ -357,6 +357,167 @@ func TestService_ListBacklogItemsReturnsErrorWhenRepositoryFails(t *testing.T) {
 	require.Nil(t, items)
 }
 
+func TestService_UpdateBacklogItem(t *testing.T) {
+	t.Parallel()
+
+	const updatedDescription = "new"
+
+	// Arrange
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
+	}
+	existingItem := mustNewBacklogItem(t, "backlog-1", "project-1", "Before", "old", "000000000001")
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return existingItem, nil
+	}
+
+	var updatedItem *domain.BacklogItem
+
+	backlogItemRepository.UpdateBacklogItemFunc = func(_ context.Context, item *domain.BacklogItem) error {
+		updatedItem = item
+
+		return nil
+	}
+	service := flow.NewService(projectRepository, backlogItemRepository, newWorkspaceMock(), nil)
+	title := "After"
+	description := updatedDescription
+
+	// Act
+	item, err := service.UpdateBacklogItem(t.Context(), "worker", "backlog-1", &title, &description)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, item)
+	require.NotSame(t, existingItem, item)
+	require.Equal(t, "After", item.Title())
+	require.Equal(t, "new", item.Description())
+	require.Same(t, item, updatedItem)
+	require.Len(t, backlogItemRepository.GetBacklogItemCalls(), 1)
+	require.Len(t, backlogItemRepository.UpdateBacklogItemCalls(), 1)
+}
+
+func TestService_UpdateBacklogItemReturnsErrorWhenProjectDoesNotExist(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	const updatedDescription = "new"
+
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return nil, repository.ErrProjectNotFound
+	}
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	service := flow.NewService(projectRepository, backlogItemRepository, newWorkspaceMock(), nil)
+	description := updatedDescription
+
+	// Act
+	item, err := service.UpdateBacklogItem(
+		t.Context(),
+		"worker",
+		"backlog-1",
+		nil,
+		&description,
+	)
+
+	// Assert
+	require.ErrorIs(t, err, repository.ErrProjectNotFound)
+	require.Nil(t, item)
+	require.Empty(t, backlogItemRepository.GetBacklogItemCalls())
+	require.Empty(t, backlogItemRepository.UpdateBacklogItemCalls())
+}
+
+func TestService_UpdateBacklogItemReturnsErrorWhenBacklogItemBelongsToAnotherProject(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	const updatedDescription = "new"
+
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
+	}
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return mustNewBacklogItem(t, "backlog-1", "project-2", "Before", "old", "000000000001"), nil
+	}
+	service := flow.NewService(projectRepository, backlogItemRepository, newWorkspaceMock(), nil)
+	description := updatedDescription
+
+	// Act
+	item, err := service.UpdateBacklogItem(
+		t.Context(),
+		"worker",
+		"backlog-1",
+		nil,
+		&description,
+	)
+
+	// Assert
+	require.ErrorIs(t, err, repository.ErrBacklogItemNotFound)
+	require.Nil(t, item)
+	require.Empty(t, backlogItemRepository.UpdateBacklogItemCalls())
+}
+
+func TestService_UpdateBacklogItemReturnsErrorWhenTitleIsEmpty(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
+	}
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return mustNewBacklogItem(t, "backlog-1", "project-1", "Before", "old", "000000000001"), nil
+	}
+	service := flow.NewService(projectRepository, backlogItemRepository, newWorkspaceMock(), nil)
+	title := ""
+
+	// Act
+	item, err := service.UpdateBacklogItem(t.Context(), "worker", "backlog-1", &title, nil)
+
+	// Assert
+	require.ErrorIs(t, err, domain.ErrBacklogItemTitleRequired)
+	require.Nil(t, item)
+	require.Empty(t, backlogItemRepository.UpdateBacklogItemCalls())
+}
+
+func TestService_UpdateBacklogItemReturnsErrorWhenRepositoryUpdateFails(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	const updatedDescription = "new"
+
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
+	}
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return mustNewBacklogItem(t, "backlog-1", "project-1", "Before", "old", "000000000001"), nil
+	}
+	backlogItemRepository.UpdateBacklogItemFunc = func(_ context.Context, _ *domain.BacklogItem) error {
+		return errBacklogItemRepository
+	}
+	service := flow.NewService(projectRepository, backlogItemRepository, newWorkspaceMock(), nil)
+	description := updatedDescription
+
+	// Act
+	item, err := service.UpdateBacklogItem(
+		t.Context(),
+		"worker",
+		"backlog-1",
+		nil,
+		&description,
+	)
+
+	// Assert
+	require.ErrorIs(t, err, errBacklogItemRepository)
+	require.Nil(t, item)
+}
+
 func TestService_RefineBacklogItem(t *testing.T) {
 	t.Parallel()
 
@@ -582,6 +743,9 @@ func newBacklogItemRepositoryMock() *BacklogItemRepositoryMock {
 		_ int,
 	) ([]*domain.BacklogItem, error) {
 		return []*domain.BacklogItem{}, nil
+	}
+	mock.UpdateBacklogItemFunc = func(_ context.Context, _ *domain.BacklogItem) error {
+		return nil
 	}
 
 	return &mock

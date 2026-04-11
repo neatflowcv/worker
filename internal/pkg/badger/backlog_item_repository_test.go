@@ -199,6 +199,61 @@ func TestProjectRepository_ListBacklogItemsReturnsErrorWhenAfterIDBelongsToAnoth
 	require.Nil(t, items)
 }
 
+func TestProjectRepository_UpdateBacklogItemPersistsUpdatedFields(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	repo := newBacklogItemRepository(t)
+	require.NoError(
+		t,
+		repo.CreateBacklogItem(
+			t.Context(),
+			mustNewBacklogItem(t, "backlog-1", "project-1", "Before", "old", "000000000001"),
+		),
+	)
+
+	updatedItem, err := domain.NewBacklogItem(
+		"backlog-1",
+		"project-1",
+		"Before",
+		"old",
+		"000000000001",
+	)
+	require.NoError(t, err)
+
+	updatedItem, err = updatedItem.SetTitle("After")
+	require.NoError(t, err)
+
+	updatedItem = updatedItem.SetDescription("new")
+
+	// Act
+	err = repo.UpdateBacklogItem(t.Context(), updatedItem)
+	require.NoError(t, err)
+	item, err := repo.GetBacklogItem(t.Context(), "backlog-1")
+
+	// Assert
+	require.NoError(t, err)
+	require.Equal(t, "After", item.Title())
+	require.Equal(t, "new", item.Description())
+	require.Equal(t, "000000000001", item.OrderKey())
+}
+
+func TestProjectRepository_UpdateBacklogItemReturnsErrorWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	repo := newBacklogItemRepository(t)
+
+	// Act
+	err := repo.UpdateBacklogItem(
+		t.Context(),
+		mustNewBacklogItem(t, "missing", "project-1", "After", "new", "000000000001"),
+	)
+
+	// Assert
+	require.ErrorIs(t, err, repository.ErrBacklogItemNotFound)
+}
+
 func newBacklogItemRepository(t *testing.T) *badger.BacklogItemRepository {
 	t.Helper()
 

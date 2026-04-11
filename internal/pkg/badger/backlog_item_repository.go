@@ -36,11 +36,8 @@ type backlogItemRecord struct {
 	OrderKey    string                   `json:"orderKey"`
 }
 
-func (r *BacklogItemRepository) CreateBacklogItem(
-	ctx context.Context,
-	item *domain.BacklogItem,
-) error {
-	record := backlogItemRecord{
+func newBacklogItemRecord(item *domain.BacklogItem) backlogItemRecord {
+	return backlogItemRecord{
 		ID:          item.ID(),
 		ProjectID:   item.ProjectID(),
 		Title:       item.Title(),
@@ -48,6 +45,13 @@ func (r *BacklogItemRepository) CreateBacklogItem(
 		Status:      item.Status(),
 		OrderKey:    item.OrderKey(),
 	}
+}
+
+func (r *BacklogItemRepository) CreateBacklogItem(
+	ctx context.Context,
+	item *domain.BacklogItem,
+) error {
+	record := newBacklogItemRecord(item)
 
 	err := r.db.Update(func(txn *badgerdb.Txn) error {
 		select {
@@ -84,6 +88,46 @@ func (r *BacklogItemRepository) CreateBacklogItem(
 	})
 	if err != nil {
 		return fmt.Errorf("persist backlog item: %w", err)
+	}
+
+	return nil
+}
+
+func (r *BacklogItemRepository) UpdateBacklogItem(
+	ctx context.Context,
+	item *domain.BacklogItem,
+) error {
+	record := newBacklogItemRecord(item)
+
+	err := r.db.Update(func(txn *badgerdb.Txn) error {
+		err := checkContext(ctx)
+		if err != nil {
+			return err
+		}
+
+		_, err = readBacklogItem(txn, item.ID())
+		if err != nil {
+			return err
+		}
+
+		value, err := json.Marshal(record)
+		if err != nil {
+			return fmt.Errorf("marshal backlog item record: %w", err)
+		}
+
+		err = txn.Set(backlogItemKey(record.ID), value)
+		if err != nil {
+			return fmt.Errorf("persist backlog item record: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, repository.ErrBacklogItemNotFound) {
+			return repository.ErrBacklogItemNotFound
+		}
+
+		return fmt.Errorf("persist updated backlog item: %w", err)
 	}
 
 	return nil
