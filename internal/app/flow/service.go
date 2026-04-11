@@ -94,6 +94,28 @@ func (s *Service) CreateBacklogItem(
 	return item, nil
 }
 
+func (s *Service) GetBacklogItem(
+	ctx context.Context,
+	projectName string,
+	backlogItemID string,
+) (*domain.BacklogItem, error) {
+	project, err := s.projectRepository.GetByName(ctx, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("get project by name: %w", err)
+	}
+
+	item, err := s.backlogItemRepository.GetBacklogItem(ctx, backlogItemID)
+	if err != nil {
+		return nil, fmt.Errorf("get backlog item: %w", err)
+	}
+
+	if item.ProjectID() != project.ID() {
+		return nil, repository.ErrBacklogItemNotFound
+	}
+
+	return item, nil
+}
+
 func (s *Service) ListBacklogItems(
 	ctx context.Context,
 	projectName string,

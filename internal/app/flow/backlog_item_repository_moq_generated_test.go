@@ -18,6 +18,9 @@ import (
 //			CreateBacklogItemFunc: func(ctx context.Context, item *domain.BacklogItem) error {
 //				panic("mock out the CreateBacklogItem method")
 //			},
+//			GetBacklogItemFunc: func(ctx context.Context, id string) (*domain.BacklogItem, error) {
+//				panic("mock out the GetBacklogItem method")
+//			},
 //			ListBacklogItemsFunc: func(ctx context.Context, projectID string, afterID string, limit int) ([]*domain.BacklogItem, error) {
 //				panic("mock out the ListBacklogItems method")
 //			},
@@ -31,6 +34,9 @@ type BacklogItemRepositoryMock struct {
 	// CreateBacklogItemFunc mocks the CreateBacklogItem method.
 	CreateBacklogItemFunc func(ctx context.Context, item *domain.BacklogItem) error
 
+	// GetBacklogItemFunc mocks the GetBacklogItem method.
+	GetBacklogItemFunc func(ctx context.Context, id string) (*domain.BacklogItem, error)
+
 	// ListBacklogItemsFunc mocks the ListBacklogItems method.
 	ListBacklogItemsFunc func(ctx context.Context, projectID string, afterID string, limit int) ([]*domain.BacklogItem, error)
 
@@ -42,6 +48,13 @@ type BacklogItemRepositoryMock struct {
 			Ctx context.Context
 			// Item is the item argument value.
 			Item *domain.BacklogItem
+		}
+		// GetBacklogItem holds details about calls to the GetBacklogItem method.
+		GetBacklogItem []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// ID is the id argument value.
+			ID string
 		}
 		// ListBacklogItems holds details about calls to the ListBacklogItems method.
 		ListBacklogItems []struct {
@@ -56,6 +69,7 @@ type BacklogItemRepositoryMock struct {
 		}
 	}
 	lockCreateBacklogItem sync.RWMutex
+	lockGetBacklogItem    sync.RWMutex
 	lockListBacklogItems  sync.RWMutex
 }
 
@@ -92,6 +106,42 @@ func (mock *BacklogItemRepositoryMock) CreateBacklogItemCalls() []struct {
 	mock.lockCreateBacklogItem.RLock()
 	calls = mock.calls.CreateBacklogItem
 	mock.lockCreateBacklogItem.RUnlock()
+	return calls
+}
+
+// GetBacklogItem calls GetBacklogItemFunc.
+func (mock *BacklogItemRepositoryMock) GetBacklogItem(ctx context.Context, id string) (*domain.BacklogItem, error) {
+	if mock.GetBacklogItemFunc == nil {
+		panic("BacklogItemRepositoryMock.GetBacklogItemFunc: method is nil but BacklogItemRepository.GetBacklogItem was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		ID  string
+	}{
+		Ctx: ctx,
+		ID:  id,
+	}
+	mock.lockGetBacklogItem.Lock()
+	mock.calls.GetBacklogItem = append(mock.calls.GetBacklogItem, callInfo)
+	mock.lockGetBacklogItem.Unlock()
+	return mock.GetBacklogItemFunc(ctx, id)
+}
+
+// GetBacklogItemCalls gets all the calls that were made to GetBacklogItem.
+// Check the length with:
+//
+//	len(mockedBacklogItemRepository.GetBacklogItemCalls())
+func (mock *BacklogItemRepositoryMock) GetBacklogItemCalls() []struct {
+	Ctx context.Context
+	ID  string
+} {
+	var calls []struct {
+		Ctx context.Context
+		ID  string
+	}
+	mock.lockGetBacklogItem.RLock()
+	calls = mock.calls.GetBacklogItem
+	mock.lockGetBacklogItem.RUnlock()
 	return calls
 }
 

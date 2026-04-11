@@ -37,6 +37,45 @@ func TestProjectRepository_CreateBacklogItemPersistsBacklogItem(t *testing.T) {
 	require.Equal(t, "000000000001", items[0].OrderKey())
 }
 
+func TestProjectRepository_GetBacklogItemReturnsPersistedItem(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	repo := newBacklogItemRepository(t)
+	require.NoError(
+		t,
+		repo.CreateBacklogItem(
+			t.Context(),
+			domain.NewBacklogItem("backlog-1", "project-1", "First", "desc", "000000000001"),
+		),
+	)
+
+	// Act
+	item, err := repo.GetBacklogItem(t.Context(), "backlog-1")
+
+	// Assert
+	require.NoError(t, err)
+	require.Equal(t, "backlog-1", item.ID())
+	require.Equal(t, "project-1", item.ProjectID())
+	require.Equal(t, "First", item.Title())
+	require.Equal(t, "desc", item.Description())
+	require.Equal(t, "000000000001", item.OrderKey())
+}
+
+func TestProjectRepository_GetBacklogItemReturnsErrorWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	repo := newBacklogItemRepository(t)
+
+	// Act
+	item, err := repo.GetBacklogItem(t.Context(), "missing")
+
+	// Assert
+	require.ErrorIs(t, err, repository.ErrBacklogItemNotFound)
+	require.Nil(t, item)
+}
+
 func TestProjectRepository_ListBacklogItemsReturnsItemsInOrderKeyOrder(t *testing.T) {
 	t.Parallel()
 

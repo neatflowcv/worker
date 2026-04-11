@@ -165,6 +165,95 @@ func TestService_CreateBacklogItemReturnsErrorWhenRepositoryFails(t *testing.T) 
 	require.Nil(t, item)
 }
 
+func TestService_GetBacklogItem(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	expectedItem := domain.NewBacklogItem("backlog-1", "project-1", "First", "desc", "000000000001")
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
+	}
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return expectedItem, nil
+	}
+	service := flow.NewService(projectRepository, backlogItemRepository, newWorkspaceMock())
+
+	// Act
+	item, err := service.GetBacklogItem(t.Context(), "worker", "backlog-1")
+
+	// Assert
+	require.NoError(t, err)
+	require.Same(t, expectedItem, item)
+	require.Len(t, backlogItemRepository.GetBacklogItemCalls(), 1)
+	require.Equal(t, "backlog-1", backlogItemRepository.GetBacklogItemCalls()[0].ID)
+}
+
+func TestService_GetBacklogItemReturnsErrorWhenProjectDoesNotExist(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return nil, repository.ErrProjectNotFound
+	}
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	service := flow.NewService(projectRepository, backlogItemRepository, newWorkspaceMock())
+
+	// Act
+	item, err := service.GetBacklogItem(t.Context(), "worker", "backlog-1")
+
+	// Assert
+	require.ErrorIs(t, err, repository.ErrProjectNotFound)
+	require.Nil(t, item)
+	require.Empty(t, backlogItemRepository.GetBacklogItemCalls())
+}
+
+func TestService_GetBacklogItemReturnsErrorWhenBacklogItemBelongsToAnotherProject(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
+	}
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return domain.NewBacklogItem("backlog-1", "project-2", "First", "desc", "000000000001"), nil
+	}
+	service := flow.NewService(projectRepository, backlogItemRepository, newWorkspaceMock())
+
+	// Act
+	item, err := service.GetBacklogItem(t.Context(), "worker", "backlog-1")
+
+	// Assert
+	require.ErrorIs(t, err, repository.ErrBacklogItemNotFound)
+	require.Nil(t, item)
+}
+
+func TestService_GetBacklogItemReturnsErrorWhenRepositoryFails(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git"), nil
+	}
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return nil, errBacklogItemRepository
+	}
+	service := flow.NewService(projectRepository, backlogItemRepository, newWorkspaceMock())
+
+	// Act
+	item, err := service.GetBacklogItem(t.Context(), "worker", "backlog-1")
+
+	// Assert
+	require.ErrorIs(t, err, errBacklogItemRepository)
+	require.Nil(t, item)
+}
+
 func TestService_ListBacklogItems(t *testing.T) {
 	t.Parallel()
 
@@ -288,6 +377,9 @@ func newBacklogItemRepositoryMock() *BacklogItemRepositoryMock {
 
 	mock.CreateBacklogItemFunc = func(_ context.Context, _ *domain.BacklogItem) error {
 		return nil
+	}
+	mock.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return nil, repository.ErrBacklogItemNotFound
 	}
 	mock.ListBacklogItemsFunc = func(
 		_ context.Context,

@@ -89,6 +89,36 @@ func (r *BacklogItemRepository) CreateBacklogItem(
 	return nil
 }
 
+func (r *BacklogItemRepository) GetBacklogItem(
+	ctx context.Context,
+	id string,
+) (*domain.BacklogItem, error) {
+	var backlogItem *domain.BacklogItem
+
+	err := r.db.View(func(txn *badgerdb.Txn) error {
+		err := checkContext(ctx)
+		if err != nil {
+			return err
+		}
+
+		backlogItem, err = readBacklogItem(txn, id)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, repository.ErrBacklogItemNotFound) {
+			return nil, repository.ErrBacklogItemNotFound
+		}
+
+		return nil, fmt.Errorf("load backlog item: %w", err)
+	}
+
+	return backlogItem, nil
+}
+
 func (r *BacklogItemRepository) ListBacklogItems(
 	ctx context.Context,
 	projectID string,
