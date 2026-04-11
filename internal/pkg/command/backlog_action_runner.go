@@ -61,19 +61,15 @@ func (r *backlogActionRunner) RefineBacklogItem(
 func buildBacklogRefinePrompt(fileName string, item *domain.BacklogItem) string {
 	if item.Description() == "" {
 		return fmt.Sprintf(
-			"Read the backlog item markdown file %q. "+
-				"The file is empty, so write an initial draft for the backlog item based on its title %q. "+
-				"Create a concise, actionable markdown draft with clear structure. "+
-				"Modify the file in place. Do not rename the file.",
+			"%q 파일에 %q 에 대한 목표와 범위, 그리고 커밋 계획, 결정해야 할 사항 등을 포함한 계획 초안을 작성해. "+
+				"특히, 결정해야 할 사항은 답변하기 쉬운 형식으로 만들어.",
 			fileName,
 			item.Title(),
 		)
 	}
 
 	return fmt.Sprintf(
-		"Read and refine the backlog item markdown file %q. "+
-			"Improve clarity and structure while preserving intent. "+
-			"Modify the file in place. Do not rename the file.",
+		"%q 파일의 계획을 더 명확하고 간결하게 정리해. 만약, 추가적으로 결정해야 할 사항이 있다면, 추가해.",
 		fileName,
 	)
 }
