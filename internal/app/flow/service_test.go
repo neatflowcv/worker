@@ -590,7 +590,7 @@ func TestService_StartBacklogItem(t *testing.T) {
 	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) (*domain.Workspace, error) {
 		require.Same(t, project, gotProject)
 
-		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main", nil), nil
+		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main"), nil
 	}
 	workspace.CreateWorktreeFunc = func(
 		_ context.Context,
@@ -733,7 +733,7 @@ func TestService_StartBacklogItemReturnsErrorWhenCreateWorktreeFails(t *testing.
 	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) (*domain.Workspace, error) {
 		require.Same(t, project, gotProject)
 
-		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main", nil), nil
+		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main"), nil
 	}
 	workspace.CreateWorktreeFunc = func(
 		_ context.Context,
@@ -777,7 +777,7 @@ func TestService_StartBacklogItemReturnsErrorWhenRepositoryFails(t *testing.T) {
 	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) (*domain.Workspace, error) {
 		require.Same(t, project, gotProject)
 
-		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main", nil), nil
+		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main"), nil
 	}
 	workspace.CreateWorktreeFunc = func(
 		_ context.Context,
@@ -826,7 +826,7 @@ func TestService_RefineBacklogItem(t *testing.T) {
 	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) (*domain.Workspace, error) {
 		require.Same(t, project, gotProject)
 
-		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main", nil), nil
+		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main"), nil
 	}
 	executor := newBacklogActionRunnerMock()
 	executor.RefineBacklogItemFunc = func(
@@ -908,7 +908,7 @@ func TestService_RefineBacklogItemReturnsErrorWhenExecutorFails(t *testing.T) {
 	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) (*domain.Workspace, error) {
 		require.Same(t, project, gotProject)
 
-		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main", nil), nil
+		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main"), nil
 	}
 	executor := newBacklogActionRunnerMock()
 	executor.RefineBacklogItemFunc = func(
@@ -1046,7 +1046,7 @@ func newWorkspaceMock() *WorkspaceMock {
 	var mock WorkspaceMock
 
 	mock.PrepareWorkspaceFunc = func(_ context.Context, project *domain.Project) (*domain.Workspace, error) {
-		return domain.NewWorkspace("/tmp/"+project.ID(), "/tmp/"+project.ID()+"/main", nil), nil
+		return domain.NewWorkspace("/tmp/"+project.ID(), "/tmp/"+project.ID()+"/main"), nil
 	}
 	mock.CreateWorktreeFunc = func(
 		_ context.Context,

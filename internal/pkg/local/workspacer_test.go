@@ -30,7 +30,6 @@ func TestWorkspacer_PrepareWorkspace(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, filepath.Join(rootDir, project.ID()), workspace.Root())
 	require.Equal(t, filepath.Join(rootDir, project.ID(), "main"), workspace.Main())
-	require.Empty(t, workspace.Worktrees())
 
 	mainDir := filepath.Join(rootDir, project.ID(), "main")
 

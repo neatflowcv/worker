@@ -46,7 +46,7 @@ func (w *Workspacer) PrepareWorkspace(ctx context.Context, project *domain.Proje
 		return nil, err
 	}
 
-	return domain.NewWorkspace(projectDir, mainDir, nil), nil
+	return domain.NewWorkspace(projectDir, mainDir), nil
 }
 
 func (w *Workspacer) CreateWorktree(
