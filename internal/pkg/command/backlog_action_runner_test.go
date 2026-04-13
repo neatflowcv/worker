@@ -147,7 +147,14 @@ func mustNewBacklogItem(
 ) *domain.BacklogItem {
 	t.Helper()
 
-	item, err := domain.NewBacklogItem(id, projectID, title, description, orderKey)
+	item, err := domain.NewBacklogItem(
+		id,
+		projectID,
+		title,
+		description,
+		domain.BacklogItemStatusOpen,
+		orderKey,
+	)
 	require.NoError(t, err)
 
 	return item

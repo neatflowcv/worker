@@ -2,15 +2,6 @@ package domain
 
 import "errors"
 
-type BacklogItemStatus string
-
-const (
-	BacklogItemStatusOpen    BacklogItemStatus = "open"
-	BacklogItemStatusRunning BacklogItemStatus = "running"
-	BacklogItemStatusBlocked BacklogItemStatus = "blocked"
-	BacklogItemStatusDone    BacklogItemStatus = "done"
-)
-
 type BacklogItem struct {
 	id          string
 	projectID   string
@@ -24,10 +15,17 @@ type BacklogItem struct {
 var ErrBacklogItemTitleRequired = errors.New("backlog item title is required")
 
 func NewBacklogItem(
-	id, projectID, title, description, orderKey string,
+	id, projectID, title, description string,
+	status BacklogItemStatus,
+	orderKey string,
 ) (*BacklogItem, error) {
 	if title == "" {
 		return nil, ErrBacklogItemTitleRequired
+	}
+
+	err := status.validate()
+	if err != nil {
+		return nil, err
 	}
 
 	return &BacklogItem{
@@ -35,7 +33,7 @@ func NewBacklogItem(
 		projectID:   projectID,
 		title:       title,
 		description: description,
-		status:      BacklogItemStatusOpen,
+		status:      status,
 		orderKey:    orderKey,
 	}, nil
 }

@@ -87,6 +87,7 @@ func (s *Service) CreateBacklogItem(
 		project.ID(),
 		title,
 		description,
+		domain.BacklogItemStatusOpen,
 		"",
 	)
 	if err != nil {
