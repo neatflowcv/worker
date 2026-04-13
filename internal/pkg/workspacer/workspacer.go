@@ -13,7 +13,7 @@ type Workspacer interface {
 		ctx context.Context,
 		project *domain.Project,
 		workspace *domain.Workspace,
-		item *domain.BacklogItem,
-	) (*domain.Worktree, error)
+		worktree *domain.Worktree,
+	) error
 	CloseWorktree(ctx context.Context, project *domain.Project, worktree *domain.Worktree) error
 }

@@ -587,26 +587,16 @@ func TestService_StartBacklogItem(t *testing.T) {
 		return nil
 	}
 	workspace := newWorkspaceMock()
-	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) (*domain.Workspace, error) {
-		require.Same(t, project, gotProject)
+	setStartBacklogItemWorkspaceSuccess(t, workspace, project)
 
-		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main"), nil
-	}
-	workspace.CreateWorktreeFunc = func(
-		_ context.Context,
-		gotProject *domain.Project,
-		gotWorkspace *domain.Workspace,
-		gotItem *domain.BacklogItem,
-	) (*domain.Worktree, error) {
-		require.Same(t, project, gotProject)
-		require.Equal(t, "/tmp/project-1", gotWorkspace.Root())
-		require.Equal(t, "/tmp/project-1/main", gotWorkspace.Main())
-		require.Equal(t, existingItem.ID(), gotItem.ID())
-		require.Equal(t, domain.BacklogItemStatusRunning, gotItem.Status())
-
-		return domain.NewWorktree(gotItem.ID(), "/tmp/project-1/"+gotItem.ID()), nil
-	}
-	service := flow.NewService(projectRepository, backlogItemRepository, workspace, newBacklogActionRunnerMock())
+	executor := newBacklogActionRunnerMock()
+	setRecommendWorktreeSuccess(
+		t,
+		executor,
+		"/tmp/project-1/main",
+		existingItem.ID(),
+	)
+	service := flow.NewService(projectRepository, backlogItemRepository, workspace, executor)
 
 	item, err := service.StartBacklogItem(t.Context(), "worker", "backlog-1")
 
@@ -618,6 +608,7 @@ func TestService_StartBacklogItem(t *testing.T) {
 	require.Same(t, item, updatedItem)
 	require.Len(t, workspace.PrepareWorkspaceCalls(), 1)
 	require.Len(t, workspace.CreateWorktreeCalls(), 1)
+	require.Len(t, executor.RecommendWorktreeCalls(), 1)
 	require.Len(t, backlogItemRepository.GetBacklogItemCalls(), 1)
 	require.Len(t, backlogItemRepository.UpdateBacklogItemCalls(), 1)
 }
@@ -739,15 +730,23 @@ func TestService_StartBacklogItemReturnsErrorWhenCreateWorktreeFails(t *testing.
 		_ context.Context,
 		gotProject *domain.Project,
 		gotWorkspace *domain.Workspace,
-		gotItem *domain.BacklogItem,
-	) (*domain.Worktree, error) {
+		gotWorktree *domain.Worktree,
+	) error {
 		require.Same(t, project, gotProject)
 		require.Equal(t, "/tmp/project-1", gotWorkspace.Root())
-		require.Equal(t, domain.BacklogItemStatusRunning, gotItem.Status())
+		require.Equal(t, "feat/backlog-1", gotWorktree.Branch())
+		require.Equal(t, "backlog-1", gotWorktree.Dir())
 
-		return nil, errWorkspace
+		return errWorkspace
 	}
-	service := flow.NewService(projectRepository, backlogItemRepository, workspace, newBacklogActionRunnerMock())
+	executor := newBacklogActionRunnerMock()
+	setRecommendWorktreeSuccess(
+		t,
+		executor,
+		"/tmp/project-1/main",
+		"backlog-1",
+	)
+	service := flow.NewService(projectRepository, backlogItemRepository, workspace, executor)
 
 	item, err := service.StartBacklogItem(t.Context(), "worker", "backlog-1")
 
@@ -755,6 +754,7 @@ func TestService_StartBacklogItemReturnsErrorWhenCreateWorktreeFails(t *testing.
 	require.Nil(t, item)
 	require.Len(t, workspace.PrepareWorkspaceCalls(), 1)
 	require.Len(t, workspace.CreateWorktreeCalls(), 1)
+	require.Len(t, executor.RecommendWorktreeCalls(), 1)
 	require.Len(t, backlogItemRepository.UpdateBacklogItemCalls(), 1)
 }
 
@@ -783,21 +783,30 @@ func TestService_StartBacklogItemReturnsErrorWhenRepositoryFails(t *testing.T) {
 		_ context.Context,
 		gotProject *domain.Project,
 		gotWorkspace *domain.Workspace,
-		gotItem *domain.BacklogItem,
-	) (*domain.Worktree, error) {
+		gotWorktree *domain.Worktree,
+	) error {
 		require.Same(t, project, gotProject)
 		require.Equal(t, "/tmp/project-1", gotWorkspace.Root())
-		require.Equal(t, domain.BacklogItemStatusRunning, gotItem.Status())
+		require.Equal(t, "feat/backlog-1", gotWorktree.Branch())
+		require.Equal(t, "backlog-1", gotWorktree.Dir())
 
-		return domain.NewWorktree(gotItem.ID(), "/tmp/project-1/"+gotItem.ID()), nil
+		return nil
 	}
-	service := flow.NewService(projectRepository, backlogItemRepository, workspace, newBacklogActionRunnerMock())
+	executor := newBacklogActionRunnerMock()
+	setRecommendWorktreeSuccess(
+		t,
+		executor,
+		"/tmp/project-1/main",
+		"backlog-1",
+	)
+	service := flow.NewService(projectRepository, backlogItemRepository, workspace, executor)
 
 	item, err := service.StartBacklogItem(t.Context(), "worker", "backlog-1")
 
 	require.ErrorIs(t, err, errBacklogItemRepository)
 	require.Nil(t, item)
 	require.Len(t, workspace.PrepareWorkspaceCalls(), 1)
+	require.Empty(t, executor.RecommendWorktreeCalls())
 	require.Empty(t, workspace.CreateWorktreeCalls())
 }
 
@@ -1051,10 +1060,10 @@ func newWorkspaceMock() *WorkspaceMock {
 	mock.CreateWorktreeFunc = func(
 		_ context.Context,
 		_ *domain.Project,
-		workspace *domain.Workspace,
-		item *domain.BacklogItem,
-	) (*domain.Worktree, error) {
-		return domain.NewWorktree(item.ID(), workspace.Root()+"/"+item.ID()), nil
+		_ *domain.Workspace,
+		_ *domain.Worktree,
+	) error {
+		return nil
 	}
 	mock.CloseWorktreeFunc = func(_ context.Context, _ *domain.Project, _ *domain.Worktree) error {
 		return nil
@@ -1134,4 +1143,56 @@ func newBacklogActionRunnerMock() *BacklogActionRunnerMock {
 	}
 
 	return &mock
+}
+
+func setRecommendWorktreeSuccess(
+	t *testing.T,
+	mock *BacklogActionRunnerMock,
+	projectDir string,
+	itemID string,
+) {
+	t.Helper()
+
+	mock.RecommendWorktreeFunc = func(
+		_ context.Context,
+		gotProjectDir string,
+		gotItem *domain.BacklogItem,
+	) (*domain.Worktree, error) {
+		require.Equal(t, projectDir, gotProjectDir)
+		require.Equal(t, itemID, gotItem.ID())
+		require.Equal(t, domain.BacklogItemStatusRunning, gotItem.Status())
+
+		return domain.NewWorktree("feat/backlog-1", "backlog-1"), nil
+	}
+}
+
+func setStartBacklogItemWorkspaceSuccess(
+	t *testing.T,
+	mock *WorkspaceMock,
+	project *domain.Project,
+) {
+	t.Helper()
+
+	mock.PrepareWorkspaceFunc = func(
+		_ context.Context,
+		gotProject *domain.Project,
+	) (*domain.Workspace, error) {
+		require.Same(t, project, gotProject)
+
+		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main"), nil
+	}
+	mock.CreateWorktreeFunc = func(
+		_ context.Context,
+		gotProject *domain.Project,
+		gotWorkspace *domain.Workspace,
+		gotWorktree *domain.Worktree,
+	) error {
+		require.Same(t, project, gotProject)
+		require.Equal(t, "/tmp/project-1", gotWorkspace.Root())
+		require.Equal(t, "/tmp/project-1/main", gotWorkspace.Main())
+		require.Equal(t, "feat/backlog-1", gotWorktree.Branch())
+		require.Equal(t, "backlog-1", gotWorktree.Dir())
+
+		return nil
+	}
 }

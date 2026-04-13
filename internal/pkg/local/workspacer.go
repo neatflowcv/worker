@@ -53,13 +53,11 @@ func (w *Workspacer) CreateWorktree(
 	ctx context.Context,
 	project *domain.Project,
 	workspace *domain.Workspace,
-	item *domain.BacklogItem,
-) (*domain.Worktree, error) {
+	worktree *domain.Worktree,
+) error {
 	_ = project
 
-	branch := item.ID()
-	worktreeDir := filepath.Join(workspace.Root(), branch)
-	worktreePathArg := filepath.Join("..", branch)
+	worktreePathArg := filepath.Join("..", worktree.Dir())
 
 	//nolint:gosec // Git worktree command uses repository-owned paths and backlog IDs.
 	command := exec.CommandContext(
@@ -68,17 +66,17 @@ func (w *Workspacer) CreateWorktree(
 		"worktree",
 		"add",
 		"-b",
-		branch,
+		worktree.Branch(),
 		worktreePathArg,
 	)
 	command.Dir = workspace.Main()
 
 	output, err := command.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("git worktree add: %w: %s", err, output)
+		return fmt.Errorf("git worktree add: %w: %s", err, output)
 	}
 
-	return domain.NewWorktree(branch, worktreeDir), nil
+	return nil
 }
 
 func (w *Workspacer) CloseWorktree(
@@ -86,7 +84,7 @@ func (w *Workspacer) CloseWorktree(
 	project *domain.Project,
 	worktree *domain.Worktree,
 ) error {
-	mainDir := filepath.Join(filepath.Dir(worktree.Dir()), "main")
+	mainDir := filepath.Join(w.rootDir, project.ID(), "main")
 
 	repository, err := git.PlainOpen(mainDir)
 	if err != nil {

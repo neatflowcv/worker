@@ -198,6 +198,7 @@ func (s *Service) UpdateBacklogItem(
 	return updatedItem, nil
 }
 
+//nolint:cyclop,funlen // Backlog start flow is kept inline by request.
 func (s *Service) StartBacklogItem(
 	ctx context.Context,
 	projectName string,
@@ -232,12 +233,25 @@ func (s *Service) StartBacklogItem(
 		return nil, fmt.Errorf("update backlog item repository: %w", err)
 	}
 
-	tree, err := s.workspacer.CreateWorktree(ctx, project, workspace, startedItem)
+	tree, err := s.backlogActionRunner.RecommendWorktree(
+		ctx,
+		workspace.Main(),
+		startedItem,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("recommend worktree: %w", err)
+	}
+
+	err = s.workspacer.CreateWorktree(ctx, project, workspace, tree)
 	if err != nil {
 		return nil, fmt.Errorf("create worktree: %w", err)
 	}
 
-	err = s.backlogActionRunner.StartBacklogItem(ctx, tree.Dir(), startedItem)
+	err = s.backlogActionRunner.StartBacklogItem(
+		ctx,
+		workspace.Root()+"/"+tree.Dir(),
+		startedItem,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("start backlog item: %w", err)
 	}

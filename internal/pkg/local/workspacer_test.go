@@ -110,18 +110,21 @@ func TestWorkspacer_CreateWorktree(t *testing.T) {
 	require.NoError(t, err)
 
 	// Act
-	worktree, err := workspacer.CreateWorktree(t.Context(), project, workspace, item)
+	worktree := domain.NewWorktree(item.ID(), item.ID())
+	err = workspacer.CreateWorktree(t.Context(), project, workspace, worktree)
 
 	// Assert
 	require.NoError(t, err)
 	require.Equal(t, item.ID(), worktree.Branch())
-	require.Equal(t, filepath.Join(rootDir, project.ID(), item.ID()), worktree.Dir())
+	require.Equal(t, item.ID(), worktree.Dir())
 
-	info, err := os.Stat(worktree.Dir())
+	worktreeDir := filepath.Join(rootDir, project.ID(), item.ID())
+
+	info, err := os.Stat(worktreeDir)
 	require.NoError(t, err)
 	require.True(t, info.IsDir())
 
-	readmePath := filepath.Join(worktree.Dir(), "README.md")
+	readmePath := filepath.Join(worktreeDir, "README.md")
 	//nolint:gosec // Test reads a file from a path created within t.TempDir.
 	content, err := os.ReadFile(readmePath)
 	require.NoError(t, err)
@@ -151,7 +154,8 @@ func TestWorkspacer_CloseWorktree(t *testing.T) {
 	workspace, err := workspacer.PrepareWorkspace(t.Context(), project)
 	require.NoError(t, err)
 
-	worktree, err := workspacer.CreateWorktree(t.Context(), project, workspace, item)
+	worktree := domain.NewWorktree(item.ID(), item.ID())
+	err = workspacer.CreateWorktree(t.Context(), project, workspace, worktree)
 	require.NoError(t, err)
 
 	// Act
@@ -159,7 +163,9 @@ func TestWorkspacer_CloseWorktree(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	info, err := os.Stat(worktree.Dir())
+
+	worktreeDir := filepath.Join(rootDir, project.ID(), item.ID())
+	info, err := os.Stat(worktreeDir)
 	require.NoError(t, err)
 	require.True(t, info.IsDir())
 	assertGitBranchExists(t, workspace.Main(), item.ID())
