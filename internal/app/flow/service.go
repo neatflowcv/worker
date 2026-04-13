@@ -49,9 +49,9 @@ func (s *Service) CreateProject(ctx context.Context, name, url string) (*domain.
 
 	project := domain.NewProject(ulid.Make().String(), name, url)
 
-	err = s.workspace.CreateWorkspace(ctx, project)
+	err = s.workspace.PrepareWorkspace(ctx, project)
 	if err != nil {
-		return nil, fmt.Errorf("create workspace: %w", err)
+		return nil, fmt.Errorf("prepare workspace: %w", err)
 	}
 
 	err = s.projectRepository.CreateProject(ctx, project)

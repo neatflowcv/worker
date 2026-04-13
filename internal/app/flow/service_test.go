@@ -41,7 +41,7 @@ func TestService_CreateProject(t *testing.T) {
 	require.Same(t, project, createdProject)
 	require.Len(t, projectRepository.GetProjectByNameCalls(), 1)
 	require.Len(t, projectRepository.CreateProjectCalls(), 1)
-	require.Len(t, workspace.CreateWorkspaceCalls(), 1)
+	require.Len(t, workspace.PrepareWorkspaceCalls(), 1)
 
 	_, err = ulid.Parse(project.ID())
 	require.NoError(t, err)
@@ -67,7 +67,7 @@ func TestService_CreateProjectReturnsErrorWhenNameAlreadyExists(t *testing.T) {
 	require.Nil(t, project)
 	require.Len(t, projectRepository.GetProjectByNameCalls(), 1)
 	require.Empty(t, projectRepository.CreateProjectCalls())
-	require.Empty(t, workspace.CreateWorkspaceCalls())
+	require.Empty(t, workspace.PrepareWorkspaceCalls())
 }
 
 func TestService_ListProjects(t *testing.T) {
@@ -754,7 +754,7 @@ func newBacklogItemRepositoryMock() *BacklogItemRepositoryMock {
 func newWorkspaceMock() *WorkspaceMock {
 	var mock WorkspaceMock
 
-	mock.CreateWorkspaceFunc = func(_ context.Context, _ *domain.Project) error {
+	mock.PrepareWorkspaceFunc = func(_ context.Context, _ *domain.Project) error {
 		return nil
 	}
 	mock.ProjectDirFunc = func(_ context.Context, project *domain.Project) (string, error) {

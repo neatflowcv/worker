@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWorkspace_CreateWorkspace(t *testing.T) {
+func TestWorkspace_PrepareWorkspace(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
@@ -23,7 +23,7 @@ func TestWorkspace_CreateWorkspace(t *testing.T) {
 	workspace := local.NewWorkspace(rootDir)
 
 	// Act
-	err := workspace.CreateWorkspace(t.Context(), project)
+	err := workspace.PrepareWorkspace(t.Context(), project)
 
 	// Assert
 	require.NoError(t, err)
@@ -49,7 +49,7 @@ func TestWorkspace_ProjectDir(t *testing.T) {
 	repositoryURL := createRepository(t)
 	project := domain.NewProject("project-1", "worker", repositoryURL)
 	workspace := local.NewWorkspace(rootDir)
-	err := workspace.CreateWorkspace(t.Context(), project)
+	err := workspace.PrepareWorkspace(t.Context(), project)
 	require.NoError(t, err)
 
 	// Act

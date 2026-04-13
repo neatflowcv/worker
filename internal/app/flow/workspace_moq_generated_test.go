@@ -15,8 +15,8 @@ import (
 //
 //		// make and configure a mocked workspace.Workspace
 //		mockedWorkspace := &WorkspaceMock{
-//			CreateWorkspaceFunc: func(ctx context.Context, project *domain.Project) error {
-//				panic("mock out the CreateWorkspace method")
+//			PrepareWorkspaceFunc: func(ctx context.Context, project *domain.Project) error {
+//				panic("mock out the PrepareWorkspace method")
 //			},
 //		}
 //
@@ -25,15 +25,15 @@ import (
 //
 //	}
 type WorkspaceMock struct {
-	// CreateWorkspaceFunc mocks the CreateWorkspace method.
-	CreateWorkspaceFunc func(ctx context.Context, project *domain.Project) error
+	// PrepareWorkspaceFunc mocks the PrepareWorkspace method.
+	PrepareWorkspaceFunc func(ctx context.Context, project *domain.Project) error
 	// ProjectDirFunc mocks the ProjectDir method.
 	ProjectDirFunc func(ctx context.Context, project *domain.Project) (string, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// CreateWorkspace holds details about calls to the CreateWorkspace method.
-		CreateWorkspace []struct {
+		// PrepareWorkspace holds details about calls to the PrepareWorkspace method.
+		PrepareWorkspace []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Project is the project argument value.
@@ -47,14 +47,14 @@ type WorkspaceMock struct {
 			Project *domain.Project
 		}
 	}
-	lockCreateWorkspace sync.RWMutex
-	lockProjectDir      sync.RWMutex
+	lockPrepareWorkspace sync.RWMutex
+	lockProjectDir       sync.RWMutex
 }
 
-// CreateWorkspace calls CreateWorkspaceFunc.
-func (mock *WorkspaceMock) CreateWorkspace(ctx context.Context, project *domain.Project) error {
-	if mock.CreateWorkspaceFunc == nil {
-		panic("WorkspaceMock.CreateWorkspaceFunc: method is nil but Workspace.CreateWorkspace was just called")
+// PrepareWorkspace calls PrepareWorkspaceFunc.
+func (mock *WorkspaceMock) PrepareWorkspace(ctx context.Context, project *domain.Project) error {
+	if mock.PrepareWorkspaceFunc == nil {
+		panic("WorkspaceMock.PrepareWorkspaceFunc: method is nil but Workspace.PrepareWorkspace was just called")
 	}
 	callInfo := struct {
 		Ctx     context.Context
@@ -63,17 +63,17 @@ func (mock *WorkspaceMock) CreateWorkspace(ctx context.Context, project *domain.
 		Ctx:     ctx,
 		Project: project,
 	}
-	mock.lockCreateWorkspace.Lock()
-	mock.calls.CreateWorkspace = append(mock.calls.CreateWorkspace, callInfo)
-	mock.lockCreateWorkspace.Unlock()
-	return mock.CreateWorkspaceFunc(ctx, project)
+	mock.lockPrepareWorkspace.Lock()
+	mock.calls.PrepareWorkspace = append(mock.calls.PrepareWorkspace, callInfo)
+	mock.lockPrepareWorkspace.Unlock()
+	return mock.PrepareWorkspaceFunc(ctx, project)
 }
 
-// CreateWorkspaceCalls gets all the calls that were made to CreateWorkspace.
+// PrepareWorkspaceCalls gets all the calls that were made to PrepareWorkspace.
 // Check the length with:
 //
-//	len(mockedWorkspace.CreateWorkspaceCalls())
-func (mock *WorkspaceMock) CreateWorkspaceCalls() []struct {
+//	len(mockedWorkspace.PrepareWorkspaceCalls())
+func (mock *WorkspaceMock) PrepareWorkspaceCalls() []struct {
 	Ctx     context.Context
 	Project *domain.Project
 } {
@@ -81,9 +81,9 @@ func (mock *WorkspaceMock) CreateWorkspaceCalls() []struct {
 		Ctx     context.Context
 		Project *domain.Project
 	}
-	mock.lockCreateWorkspace.RLock()
-	calls = mock.calls.CreateWorkspace
-	mock.lockCreateWorkspace.RUnlock()
+	mock.lockPrepareWorkspace.RLock()
+	calls = mock.calls.PrepareWorkspace
+	mock.lockPrepareWorkspace.RUnlock()
 	return calls
 }
 

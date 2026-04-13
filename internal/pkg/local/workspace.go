@@ -30,7 +30,7 @@ func NewWorkspace(rootDir string) *Workspace {
 	}
 }
 
-func (w *Workspace) CreateWorkspace(ctx context.Context, project *domain.Project) error {
+func (w *Workspace) PrepareWorkspace(ctx context.Context, project *domain.Project) error {
 	projectDir := filepath.Join(w.rootDir, project.ID())
 
 	err := os.MkdirAll(projectDir, projectDirMode)
