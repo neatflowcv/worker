@@ -211,6 +211,11 @@ func (s *Service) RefineBacklogItem(
 		return nil, repository.ErrBacklogItemNotFound
 	}
 
+	err = s.workspace.PrepareWorkspace(ctx, project)
+	if err != nil {
+		return nil, fmt.Errorf("prepare workspace: %w", err)
+	}
+
 	projectDir, err := s.workspace.ProjectDir(ctx, project)
 	if err != nil {
 		return nil, fmt.Errorf("get project directory: %w", err)
