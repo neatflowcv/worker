@@ -58,9 +58,8 @@ func TestNewBacklogActionRunnerWithRunnerRefineBacklogItem(t *testing.T) {
 	require.Equal(t, projectDir, gotDir)
 	require.Equal(
 		t,
-		`Read and refine the backlog item markdown file "backlog-1.md". `+
-			`Improve clarity and structure while preserving intent. `+
-			`Modify the file in place. Do not rename the file.`,
+		`"backlog-1.md" 파일의 계획을 더 명확하고 간결하게 정리해. `+
+			`만약, 추가적으로 결정해야 할 사항이 있다면, 추가해.`,
 		gotPrompt,
 	)
 
@@ -125,10 +124,9 @@ func TestNewBacklogActionRunnerWithRunnerBuildsDraftPromptWhenDescriptionIsEmpty
 	require.Equal(t, "# draft", refinedItem.Description())
 	require.Equal(
 		t,
-		`Read the backlog item markdown file "backlog-1.md". `+
-			`The file is empty, so write an initial draft for the backlog item based on its title "Draft title". `+
-			`Create a concise, actionable markdown draft with clear structure. `+
-			`Modify the file in place. Do not rename the file.`,
+		`"backlog-1.md" 파일에 "Draft title" 에 대한 목표와 범위, `+
+			`그리고 커밋 계획, 결정해야 할 사항 등을 포함한 계획 초안을 작성해. `+
+			`특히, 결정해야 할 사항은 답변하기 쉬운 형식으로 만들어.`,
 		gotPrompt,
 	)
 }
