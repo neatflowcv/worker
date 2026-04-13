@@ -41,6 +41,33 @@ func TestWorkspace_PrepareWorkspace(t *testing.T) {
 	require.Equal(t, "worker\n", string(content))
 }
 
+func TestWorkspace_PrepareWorkspacePullsWhenRepositoryExists(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	rootDir := t.TempDir()
+	repositoryURL := createRepository(t)
+	project := domain.NewProject("project-1", "worker", repositoryURL)
+	workspace := local.NewWorkspace(rootDir)
+
+	err := workspace.PrepareWorkspace(t.Context(), project)
+	require.NoError(t, err)
+
+	appendCommitToRepository(t, repositoryURL, "README.md", "updated\n", "update readme")
+
+	// Act
+	err = workspace.PrepareWorkspace(t.Context(), project)
+
+	// Assert
+	require.NoError(t, err)
+
+	readmePath := filepath.Join(rootDir, project.ID(), "main", "README.md")
+	//nolint:gosec // Test reads a file from a path created within t.TempDir.
+	content, err := os.ReadFile(readmePath)
+	require.NoError(t, err)
+	require.Equal(t, "worker\nupdated\n", string(content))
+}
+
 func TestWorkspace_ProjectDir(t *testing.T) {
 	t.Parallel()
 
@@ -109,4 +136,43 @@ func createRepository(t *testing.T) string {
 	require.NoError(t, err)
 
 	return dir
+}
+
+func appendCommitToRepository(t *testing.T, repositoryDir string, path string, content string, message string) {
+	t.Helper()
+
+	//nolint:gosec // Test writes a file within t.TempDir.
+	file, err := os.OpenFile(filepath.Join(repositoryDir, path), os.O_APPEND|os.O_WRONLY, 0)
+	require.NoError(t, err)
+
+	_, err = file.WriteString(content)
+	require.NoError(t, err)
+
+	err = file.Close()
+	require.NoError(t, err)
+
+	repository, err := git.PlainOpen(repositoryDir)
+	require.NoError(t, err)
+
+	worktree, err := repository.Worktree()
+	require.NoError(t, err)
+
+	_, err = worktree.Add(path)
+	require.NoError(t, err)
+
+	_, err = worktree.Commit(message, &git.CommitOptions{
+		All:               false,
+		AllowEmptyCommits: false,
+		Author: &object.Signature{
+			Name:  "tester",
+			Email: "tester@example.com",
+			When:  time.Unix(1, 0),
+		},
+		Committer: nil,
+		Parents:   nil,
+		SignKey:   nil,
+		Signer:    nil,
+		Amend:     false,
+	})
+	require.NoError(t, err)
 }
