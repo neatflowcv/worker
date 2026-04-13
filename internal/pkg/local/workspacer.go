@@ -18,8 +18,6 @@ var _ workspacerpkg.Workspacer = (*Workspacer)(nil)
 
 const projectDirMode = 0o750
 
-var errProjectDirNotDirectory = errors.New("project directory is not a directory")
-
 type Workspacer struct {
 	rootDir string
 }
@@ -30,37 +28,22 @@ func NewWorkspacer(rootDir string) *Workspacer {
 	}
 }
 
-func (w *Workspacer) PrepareWorkspace(ctx context.Context, project *domain.Project) error {
+func (w *Workspacer) PrepareWorkspace(ctx context.Context, project *domain.Project) (*domain.Workspace, error) {
 	projectDir := filepath.Join(w.rootDir, project.ID())
 
 	err := os.MkdirAll(projectDir, projectDirMode)
 	if err != nil {
-		return fmt.Errorf("create project directory: %w", err)
+		return nil, fmt.Errorf("create project directory: %w", err)
 	}
 
 	mainDir := filepath.Join(projectDir, "main")
 
 	err = w.ensureRepository(ctx, mainDir, project)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
-}
-
-func (w *Workspacer) ProjectDir(_ context.Context, project *domain.Project) (string, error) {
-	projectDir := filepath.Join(w.rootDir, project.ID(), "main")
-
-	info, err := os.Stat(projectDir)
-	if err != nil {
-		return "", fmt.Errorf("stat project directory: %w", err)
-	}
-
-	if !info.IsDir() {
-		return "", errProjectDirNotDirectory
-	}
-
-	return projectDir, nil
+	return domain.NewWorkspace(projectDir, mainDir, nil), nil
 }
 
 func (w *Workspacer) ensureRepository(ctx context.Context, mainDir string, project *domain.Project) error {

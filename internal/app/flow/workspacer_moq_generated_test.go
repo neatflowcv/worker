@@ -26,9 +26,7 @@ import (
 //	}
 type WorkspaceMock struct {
 	// PrepareWorkspaceFunc mocks the PrepareWorkspace method.
-	PrepareWorkspaceFunc func(ctx context.Context, project *domain.Project) error
-	// ProjectDirFunc mocks the ProjectDir method.
-	ProjectDirFunc func(ctx context.Context, project *domain.Project) (string, error)
+	PrepareWorkspaceFunc func(ctx context.Context, project *domain.Project) (*domain.Workspace, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -39,20 +37,12 @@ type WorkspaceMock struct {
 			// Project is the project argument value.
 			Project *domain.Project
 		}
-		// ProjectDir holds details about calls to the ProjectDir method.
-		ProjectDir []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Project is the project argument value.
-			Project *domain.Project
-		}
 	}
 	lockPrepareWorkspace sync.RWMutex
-	lockProjectDir       sync.RWMutex
 }
 
 // PrepareWorkspace calls PrepareWorkspaceFunc.
-func (mock *WorkspaceMock) PrepareWorkspace(ctx context.Context, project *domain.Project) error {
+func (mock *WorkspaceMock) PrepareWorkspace(ctx context.Context, project *domain.Project) (*domain.Workspace, error) {
 	if mock.PrepareWorkspaceFunc == nil {
 		panic("WorkspaceMock.PrepareWorkspaceFunc: method is nil but Workspacer.PrepareWorkspace was just called")
 	}
@@ -84,41 +74,5 @@ func (mock *WorkspaceMock) PrepareWorkspaceCalls() []struct {
 	mock.lockPrepareWorkspace.RLock()
 	calls = mock.calls.PrepareWorkspace
 	mock.lockPrepareWorkspace.RUnlock()
-	return calls
-}
-
-// ProjectDir calls ProjectDirFunc.
-func (mock *WorkspaceMock) ProjectDir(ctx context.Context, project *domain.Project) (string, error) {
-	if mock.ProjectDirFunc == nil {
-		panic("WorkspaceMock.ProjectDirFunc: method is nil but Workspacer.ProjectDir was just called")
-	}
-	callInfo := struct {
-		Ctx     context.Context
-		Project *domain.Project
-	}{
-		Ctx:     ctx,
-		Project: project,
-	}
-	mock.lockProjectDir.Lock()
-	mock.calls.ProjectDir = append(mock.calls.ProjectDir, callInfo)
-	mock.lockProjectDir.Unlock()
-	return mock.ProjectDirFunc(ctx, project)
-}
-
-// ProjectDirCalls gets all the calls that were made to ProjectDir.
-// Check the length with:
-//
-//	len(mockedWorkspace.ProjectDirCalls())
-func (mock *WorkspaceMock) ProjectDirCalls() []struct {
-	Ctx     context.Context
-	Project *domain.Project
-} {
-	var calls []struct {
-		Ctx     context.Context
-		Project *domain.Project
-	}
-	mock.lockProjectDir.RLock()
-	calls = mock.calls.ProjectDir
-	mock.lockProjectDir.RUnlock()
 	return calls
 }

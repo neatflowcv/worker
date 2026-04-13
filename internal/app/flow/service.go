@@ -49,7 +49,7 @@ func (s *Service) CreateProject(ctx context.Context, name, url string) (*domain.
 
 	project := domain.NewProject(ulid.Make().String(), name, url)
 
-	err = s.workspacer.PrepareWorkspace(ctx, project)
+	_, err = s.workspacer.PrepareWorkspace(ctx, project)
 	if err != nil {
 		return nil, fmt.Errorf("prepare workspace: %w", err)
 	}
@@ -212,17 +212,12 @@ func (s *Service) RefineBacklogItem(
 		return nil, repository.ErrBacklogItemNotFound
 	}
 
-	err = s.workspacer.PrepareWorkspace(ctx, project)
+	workspace, err := s.workspacer.PrepareWorkspace(ctx, project)
 	if err != nil {
 		return nil, fmt.Errorf("prepare workspace: %w", err)
 	}
 
-	projectDir, err := s.workspacer.ProjectDir(ctx, project)
-	if err != nil {
-		return nil, fmt.Errorf("get project directory: %w", err)
-	}
-
-	refinedItem, err := s.backlogActionRunner.RefineBacklogItem(ctx, projectDir, item)
+	refinedItem, err := s.backlogActionRunner.RefineBacklogItem(ctx, workspace.Main(), item)
 	if err != nil {
 		return nil, fmt.Errorf("refine backlog item: %w", err)
 	}

@@ -541,15 +541,10 @@ func TestService_RefineBacklogItem(t *testing.T) {
 		return backlogItem, nil
 	}
 	workspace := newWorkspaceMock()
-	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) error {
+	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) (*domain.Workspace, error) {
 		require.Same(t, project, gotProject)
 
-		return nil
-	}
-	workspace.ProjectDirFunc = func(_ context.Context, gotProject *domain.Project) (string, error) {
-		require.Same(t, project, gotProject)
-
-		return "/tmp/project-1/main", nil
+		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main", nil), nil
 	}
 	executor := newBacklogActionRunnerMock()
 	executor.RefineBacklogItemFunc = func(
@@ -578,7 +573,6 @@ func TestService_RefineBacklogItem(t *testing.T) {
 	require.Equal(t, backlogItem.Status(), item.Status())
 	require.Equal(t, backlogItem.OrderKey(), item.OrderKey())
 	require.Len(t, workspace.PrepareWorkspaceCalls(), 1)
-	require.Len(t, workspace.ProjectDirCalls(), 1)
 	require.Len(t, executor.RefineBacklogItemCalls(), 1)
 	require.Empty(t, backlogItemRepository.CreateBacklogItemCalls())
 }
@@ -597,46 +591,10 @@ func TestService_RefineBacklogItemReturnsErrorWhenPrepareWorkspaceFails(t *testi
 		return mustNewBacklogItem(t, "backlog-1", "project-1", "First", "desc", "000000000001"), nil
 	}
 	workspace := newWorkspaceMock()
-	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) error {
+	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) (*domain.Workspace, error) {
 		require.Same(t, project, gotProject)
 
-		return errWorkspace
-	}
-	executor := newBacklogActionRunnerMock()
-	service := flow.NewService(projectRepository, backlogItemRepository, workspace, executor)
-
-	// Act
-	item, err := service.RefineBacklogItem(t.Context(), "worker", "backlog-1")
-
-	// Assert
-	require.ErrorIs(t, err, errWorkspace)
-	require.Nil(t, item)
-	require.Len(t, workspace.PrepareWorkspaceCalls(), 1)
-	require.Empty(t, workspace.ProjectDirCalls())
-	require.Empty(t, executor.RefineBacklogItemCalls())
-}
-
-func TestService_RefineBacklogItemReturnsErrorWhenProjectDirFails(t *testing.T) {
-	t.Parallel()
-
-	// Arrange
-	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
-	projectRepository := newProjectRepositoryMock()
-	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
-		return project, nil
-	}
-	backlogItemRepository := newBacklogItemRepositoryMock()
-	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
-		return mustNewBacklogItem(t, "backlog-1", "project-1", "First", "desc", "000000000001"), nil
-	}
-	workspace := newWorkspaceMock()
-	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) error {
-		require.Same(t, project, gotProject)
-
-		return nil
-	}
-	workspace.ProjectDirFunc = func(_ context.Context, _ *domain.Project) (string, error) {
-		return "", errWorkspace
+		return nil, errWorkspace
 	}
 	executor := newBacklogActionRunnerMock()
 	service := flow.NewService(projectRepository, backlogItemRepository, workspace, executor)
@@ -665,10 +623,10 @@ func TestService_RefineBacklogItemReturnsErrorWhenExecutorFails(t *testing.T) {
 		return mustNewBacklogItem(t, "backlog-1", "project-1", "First", "desc", "000000000001"), nil
 	}
 	workspace := newWorkspaceMock()
-	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) error {
+	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) (*domain.Workspace, error) {
 		require.Same(t, project, gotProject)
 
-		return nil
+		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main", nil), nil
 	}
 	executor := newBacklogActionRunnerMock()
 	executor.RefineBacklogItemFunc = func(
@@ -687,7 +645,6 @@ func TestService_RefineBacklogItemReturnsErrorWhenExecutorFails(t *testing.T) {
 	require.ErrorIs(t, err, errBacklogRefineExecutor)
 	require.Nil(t, item)
 	require.Len(t, workspace.PrepareWorkspaceCalls(), 1)
-	require.Len(t, workspace.ProjectDirCalls(), 1)
 }
 
 func TestService_RefineBacklogItemReturnsErrorWhenBacklogItemBelongsToAnotherProject(t *testing.T) {
@@ -712,7 +669,6 @@ func TestService_RefineBacklogItemReturnsErrorWhenBacklogItemBelongsToAnotherPro
 	// Assert
 	require.ErrorIs(t, err, repository.ErrBacklogItemNotFound)
 	require.Nil(t, item)
-	require.Empty(t, workspace.ProjectDirCalls())
 	require.Empty(t, executor.RefineBacklogItemCalls())
 }
 
@@ -736,7 +692,6 @@ func TestService_RefineBacklogItemReturnsErrorWhenProjectDoesNotExist(t *testing
 	require.ErrorIs(t, err, repository.ErrProjectNotFound)
 	require.Nil(t, item)
 	require.Empty(t, backlogItemRepository.GetBacklogItemCalls())
-	require.Empty(t, workspace.ProjectDirCalls())
 	require.Empty(t, executor.RefineBacklogItemCalls())
 }
 
@@ -762,7 +717,6 @@ func TestService_RefineBacklogItemReturnsErrorWhenRepositoryFails(t *testing.T) 
 	// Assert
 	require.ErrorIs(t, err, errBacklogItemRepository)
 	require.Nil(t, item)
-	require.Empty(t, workspace.ProjectDirCalls())
 	require.Empty(t, executor.RefineBacklogItemCalls())
 }
 
@@ -809,11 +763,8 @@ func newBacklogItemRepositoryMock() *BacklogItemRepositoryMock {
 func newWorkspaceMock() *WorkspaceMock {
 	var mock WorkspaceMock
 
-	mock.PrepareWorkspaceFunc = func(_ context.Context, _ *domain.Project) error {
-		return nil
-	}
-	mock.ProjectDirFunc = func(_ context.Context, project *domain.Project) (string, error) {
-		return "/tmp/" + project.ID() + "/main", nil
+	mock.PrepareWorkspaceFunc = func(_ context.Context, project *domain.Project) (*domain.Workspace, error) {
+		return domain.NewWorkspace("/tmp/"+project.ID(), "/tmp/"+project.ID()+"/main", nil), nil
 	}
 
 	return &mock
