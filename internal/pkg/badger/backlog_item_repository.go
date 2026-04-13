@@ -297,6 +297,7 @@ func readBacklogItem(txn *badgerdb.Txn, id string) (*domain.BacklogItem, error) 
 			record.ProjectID,
 			record.Title,
 			record.Description,
+			record.Status,
 			record.OrderKey,
 		)
 		if err != nil {

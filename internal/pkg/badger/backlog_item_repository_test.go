@@ -34,6 +34,7 @@ func TestProjectRepository_CreateBacklogItemPersistsBacklogItem(t *testing.T) {
 	require.Equal(t, "project-1", items[0].ProjectID())
 	require.Equal(t, "First", items[0].Title())
 	require.Equal(t, "desc", items[0].Description())
+	require.Equal(t, domain.BacklogItemStatusOpen, items[0].Status())
 	require.Equal(t, "000000000001", items[0].OrderKey())
 }
 
@@ -46,7 +47,15 @@ func TestProjectRepository_GetBacklogItemReturnsPersistedItem(t *testing.T) {
 		t,
 		repo.CreateBacklogItem(
 			t.Context(),
-			mustNewBacklogItem(t, "backlog-1", "project-1", "First", "desc", "000000000001"),
+			mustNewBacklogItemWithStatus(
+				t,
+				"backlog-1",
+				"project-1",
+				"First",
+				"desc",
+				domain.BacklogItemStatusRunning,
+				"000000000001",
+			),
 		),
 	)
 
@@ -59,6 +68,7 @@ func TestProjectRepository_GetBacklogItemReturnsPersistedItem(t *testing.T) {
 	require.Equal(t, "project-1", item.ProjectID())
 	require.Equal(t, "First", item.Title())
 	require.Equal(t, "desc", item.Description())
+	require.Equal(t, domain.BacklogItemStatusRunning, item.Status())
 	require.Equal(t, "000000000001", item.OrderKey())
 }
 
@@ -208,7 +218,15 @@ func TestProjectRepository_UpdateBacklogItemPersistsUpdatedFields(t *testing.T) 
 		t,
 		repo.CreateBacklogItem(
 			t.Context(),
-			mustNewBacklogItem(t, "backlog-1", "project-1", "Before", "old", "000000000001"),
+			mustNewBacklogItemWithStatus(
+				t,
+				"backlog-1",
+				"project-1",
+				"Before",
+				"old",
+				domain.BacklogItemStatusRunning,
+				"000000000001",
+			),
 		),
 	)
 
@@ -217,6 +235,7 @@ func TestProjectRepository_UpdateBacklogItemPersistsUpdatedFields(t *testing.T) 
 		"project-1",
 		"Before",
 		"old",
+		domain.BacklogItemStatusRunning,
 		"000000000001",
 	)
 	require.NoError(t, err)
@@ -235,6 +254,7 @@ func TestProjectRepository_UpdateBacklogItemPersistsUpdatedFields(t *testing.T) 
 	require.NoError(t, err)
 	require.Equal(t, "After", item.Title())
 	require.Equal(t, "new", item.Description())
+	require.Equal(t, domain.BacklogItemStatusRunning, item.Status())
 	require.Equal(t, "000000000001", item.OrderKey())
 }
 
@@ -288,7 +308,36 @@ func mustNewBacklogItem(
 ) *domain.BacklogItem {
 	t.Helper()
 
-	item, err := domain.NewBacklogItem(id, projectID, title, description, orderKey)
+	return mustNewBacklogItemWithStatus(
+		t,
+		id,
+		projectID,
+		title,
+		description,
+		domain.BacklogItemStatusOpen,
+		orderKey,
+	)
+}
+
+func mustNewBacklogItemWithStatus(
+	t *testing.T,
+	id string,
+	projectID string,
+	title string,
+	description string,
+	status domain.BacklogItemStatus,
+	orderKey string,
+) *domain.BacklogItem {
+	t.Helper()
+
+	item, err := domain.NewBacklogItem(
+		id,
+		projectID,
+		title,
+		description,
+		status,
+		orderKey,
+	)
 	require.NoError(t, err)
 
 	return item

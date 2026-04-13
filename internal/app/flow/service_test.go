@@ -117,6 +117,7 @@ func TestService_CreateBacklogItem(t *testing.T) {
 	require.Equal(t, "project-1", item.ProjectID())
 	require.Equal(t, "Add backlog create", item.Title())
 	require.Equal(t, "cli implementation", item.Description())
+	require.Equal(t, domain.BacklogItemStatusOpen, item.Status())
 	require.Len(t, backlogItemRepository.CreateBacklogItemCalls(), 1)
 	require.Same(t, item, backlogItemRepository.CreateBacklogItemCalls()[0].Item)
 
@@ -832,7 +833,14 @@ func mustNewBacklogItem(
 ) *domain.BacklogItem {
 	t.Helper()
 
-	item, err := domain.NewBacklogItem(id, projectID, title, description, orderKey)
+	item, err := domain.NewBacklogItem(
+		id,
+		projectID,
+		title,
+		description,
+		domain.BacklogItemStatusOpen,
+		orderKey,
+	)
 	require.NoError(t, err)
 
 	return item
