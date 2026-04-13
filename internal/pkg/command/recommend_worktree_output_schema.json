@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "branch_name": { "type": "string" },
+    "directory_name": { "type": "string" }
+  },
+  "required": ["branch_name", "directory_name"],
+  "additionalProperties": false
+}

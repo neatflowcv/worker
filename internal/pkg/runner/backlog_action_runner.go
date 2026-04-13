@@ -18,4 +18,9 @@ type BacklogActionRunner interface {
 		projectDir string,
 		item *domain.BacklogItem,
 	) (*domain.BacklogItem, error)
+	RecommendWorktree(
+		ctx context.Context,
+		projectDir string,
+		item *domain.BacklogItem,
+	) (*domain.Worktree, error)
 }

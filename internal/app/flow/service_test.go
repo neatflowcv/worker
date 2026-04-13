@@ -1115,6 +1115,13 @@ func mustNewBacklogItemWithStatus(
 func newBacklogActionRunnerMock() *BacklogActionRunnerMock {
 	var mock BacklogActionRunnerMock
 
+	mock.RecommendWorktreeFunc = func(
+		_ context.Context,
+		_ string,
+		_ *domain.BacklogItem,
+	) (*domain.Worktree, error) {
+		return domain.NewWorktree("branch", "dir"), nil
+	}
 	mock.StartBacklogItemFunc = func(_ context.Context, _ string, _ *domain.BacklogItem) error {
 		return nil
 	}

@@ -15,11 +15,14 @@ import (
 //
 //		// make and configure a mocked runner.BacklogActionRunner
 //		mockedBacklogActionRunner := &BacklogActionRunnerMock{
-//			StartBacklogItemFunc: func(ctx context.Context, projectDir string, item *domain.BacklogItem) error {
-//				panic("mock out the StartBacklogItem method")
+//			RecommendWorktreeFunc: func(ctx context.Context, projectDir string, item *domain.BacklogItem) (*domain.Worktree, error) {
+//				panic("mock out the RecommendWorktree method")
 //			},
 //			RefineBacklogItemFunc: func(ctx context.Context, projectDir string, item *domain.BacklogItem) (*domain.BacklogItem, error) {
 //				panic("mock out the RefineBacklogItem method")
+//			},
+//			StartBacklogItemFunc: func(ctx context.Context, projectDir string, item *domain.BacklogItem) error {
+//				panic("mock out the StartBacklogItem method")
 //			},
 //		}
 //
@@ -28,15 +31,19 @@ import (
 //
 //	}
 type BacklogActionRunnerMock struct {
-	// StartBacklogItemFunc mocks the StartBacklogItem method.
-	StartBacklogItemFunc func(ctx context.Context, projectDir string, item *domain.BacklogItem) error
+	// RecommendWorktreeFunc mocks the RecommendWorktree method.
+	RecommendWorktreeFunc func(ctx context.Context, projectDir string, item *domain.BacklogItem) (*domain.Worktree, error)
+
 	// RefineBacklogItemFunc mocks the RefineBacklogItem method.
 	RefineBacklogItemFunc func(ctx context.Context, projectDir string, item *domain.BacklogItem) (*domain.BacklogItem, error)
 
+	// StartBacklogItemFunc mocks the StartBacklogItem method.
+	StartBacklogItemFunc func(ctx context.Context, projectDir string, item *domain.BacklogItem) error
+
 	// calls tracks calls to the methods.
 	calls struct {
-		// StartBacklogItem holds details about calls to the StartBacklogItem method.
-		StartBacklogItem []struct {
+		// RecommendWorktree holds details about calls to the RecommendWorktree method.
+		RecommendWorktree []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// ProjectDir is the projectDir argument value.
@@ -53,15 +60,25 @@ type BacklogActionRunnerMock struct {
 			// Item is the item argument value.
 			Item *domain.BacklogItem
 		}
+		// StartBacklogItem holds details about calls to the StartBacklogItem method.
+		StartBacklogItem []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// ProjectDir is the projectDir argument value.
+			ProjectDir string
+			// Item is the item argument value.
+			Item *domain.BacklogItem
+		}
 	}
-	lockStartBacklogItem  sync.RWMutex
+	lockRecommendWorktree sync.RWMutex
 	lockRefineBacklogItem sync.RWMutex
+	lockStartBacklogItem  sync.RWMutex
 }
 
-// StartBacklogItem calls StartBacklogItemFunc.
-func (mock *BacklogActionRunnerMock) StartBacklogItem(ctx context.Context, projectDir string, item *domain.BacklogItem) error {
-	if mock.StartBacklogItemFunc == nil {
-		panic("BacklogActionRunnerMock.StartBacklogItemFunc: method is nil but BacklogActionRunner.StartBacklogItem was just called")
+// RecommendWorktree calls RecommendWorktreeFunc.
+func (mock *BacklogActionRunnerMock) RecommendWorktree(ctx context.Context, projectDir string, item *domain.BacklogItem) (*domain.Worktree, error) {
+	if mock.RecommendWorktreeFunc == nil {
+		panic("BacklogActionRunnerMock.RecommendWorktreeFunc: method is nil but BacklogActionRunner.RecommendWorktree was just called")
 	}
 	callInfo := struct {
 		Ctx        context.Context
@@ -72,17 +89,17 @@ func (mock *BacklogActionRunnerMock) StartBacklogItem(ctx context.Context, proje
 		ProjectDir: projectDir,
 		Item:       item,
 	}
-	mock.lockStartBacklogItem.Lock()
-	mock.calls.StartBacklogItem = append(mock.calls.StartBacklogItem, callInfo)
-	mock.lockStartBacklogItem.Unlock()
-	return mock.StartBacklogItemFunc(ctx, projectDir, item)
+	mock.lockRecommendWorktree.Lock()
+	mock.calls.RecommendWorktree = append(mock.calls.RecommendWorktree, callInfo)
+	mock.lockRecommendWorktree.Unlock()
+	return mock.RecommendWorktreeFunc(ctx, projectDir, item)
 }
 
-// StartBacklogItemCalls gets all the calls that were made to StartBacklogItem.
+// RecommendWorktreeCalls gets all the calls that were made to RecommendWorktree.
 // Check the length with:
 //
-//	len(mockedBacklogActionRunner.StartBacklogItemCalls())
-func (mock *BacklogActionRunnerMock) StartBacklogItemCalls() []struct {
+//	len(mockedBacklogActionRunner.RecommendWorktreeCalls())
+func (mock *BacklogActionRunnerMock) RecommendWorktreeCalls() []struct {
 	Ctx        context.Context
 	ProjectDir string
 	Item       *domain.BacklogItem
@@ -92,9 +109,9 @@ func (mock *BacklogActionRunnerMock) StartBacklogItemCalls() []struct {
 		ProjectDir string
 		Item       *domain.BacklogItem
 	}
-	mock.lockStartBacklogItem.RLock()
-	calls = mock.calls.StartBacklogItem
-	mock.lockStartBacklogItem.RUnlock()
+	mock.lockRecommendWorktree.RLock()
+	calls = mock.calls.RecommendWorktree
+	mock.lockRecommendWorktree.RUnlock()
 	return calls
 }
 
@@ -135,5 +152,45 @@ func (mock *BacklogActionRunnerMock) RefineBacklogItemCalls() []struct {
 	mock.lockRefineBacklogItem.RLock()
 	calls = mock.calls.RefineBacklogItem
 	mock.lockRefineBacklogItem.RUnlock()
+	return calls
+}
+
+// StartBacklogItem calls StartBacklogItemFunc.
+func (mock *BacklogActionRunnerMock) StartBacklogItem(ctx context.Context, projectDir string, item *domain.BacklogItem) error {
+	if mock.StartBacklogItemFunc == nil {
+		panic("BacklogActionRunnerMock.StartBacklogItemFunc: method is nil but BacklogActionRunner.StartBacklogItem was just called")
+	}
+	callInfo := struct {
+		Ctx        context.Context
+		ProjectDir string
+		Item       *domain.BacklogItem
+	}{
+		Ctx:        ctx,
+		ProjectDir: projectDir,
+		Item:       item,
+	}
+	mock.lockStartBacklogItem.Lock()
+	mock.calls.StartBacklogItem = append(mock.calls.StartBacklogItem, callInfo)
+	mock.lockStartBacklogItem.Unlock()
+	return mock.StartBacklogItemFunc(ctx, projectDir, item)
+}
+
+// StartBacklogItemCalls gets all the calls that were made to StartBacklogItem.
+// Check the length with:
+//
+//	len(mockedBacklogActionRunner.StartBacklogItemCalls())
+func (mock *BacklogActionRunnerMock) StartBacklogItemCalls() []struct {
+	Ctx        context.Context
+	ProjectDir string
+	Item       *domain.BacklogItem
+} {
+	var calls []struct {
+		Ctx        context.Context
+		ProjectDir string
+		Item       *domain.BacklogItem
+	}
+	mock.lockStartBacklogItem.RLock()
+	calls = mock.calls.StartBacklogItem
+	mock.lockStartBacklogItem.RUnlock()
 	return calls
 }
