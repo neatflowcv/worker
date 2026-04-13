@@ -37,7 +37,12 @@ func NewService(
 	}
 }
 
-func (s *Service) CreateProject(ctx context.Context, name, url string) (*domain.Project, error) {
+func (s *Service) CreateProject(
+	ctx context.Context,
+	name string,
+	url string,
+	auth *domain.Auth,
+) (*domain.Project, error) {
 	_, err := s.projectRepository.GetProjectByName(ctx, name)
 	if err == nil {
 		return nil, ErrProjectAlreadyExists
@@ -47,7 +52,7 @@ func (s *Service) CreateProject(ctx context.Context, name, url string) (*domain.
 		return nil, fmt.Errorf("get project by name: %w", err)
 	}
 
-	project := domain.NewProject(ulid.Make().String(), name, url)
+	project := domain.NewProject(ulid.Make().String(), name, url, auth)
 
 	_, err = s.workspacer.PrepareWorkspace(ctx, project)
 	if err != nil {

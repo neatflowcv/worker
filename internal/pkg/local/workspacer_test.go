@@ -19,7 +19,7 @@ func TestWorkspacer_PrepareWorkspace(t *testing.T) {
 	// Arrange
 	rootDir := t.TempDir()
 	repositoryURL := createRepository(t)
-	project := domain.NewProject("project-1", "worker", repositoryURL)
+	project := domain.NewProject("project-1", "worker", repositoryURL, nil)
 	workspacer := local.NewWorkspacer(rootDir)
 
 	// Act
@@ -50,7 +50,7 @@ func TestWorkspacer_PrepareWorkspacePullsWhenRepositoryExists(t *testing.T) {
 	// Arrange
 	rootDir := t.TempDir()
 	repositoryURL := createRepository(t)
-	project := domain.NewProject("project-1", "worker", repositoryURL)
+	project := domain.NewProject("project-1", "worker", repositoryURL, nil)
 	workspacer := local.NewWorkspacer(rootDir)
 
 	_, err := workspacer.PrepareWorkspace(t.Context(), project)
@@ -78,7 +78,7 @@ func TestWorkspacer_PrepareWorkspaceReturnsWorkspace(t *testing.T) {
 	// Arrange
 	rootDir := t.TempDir()
 	repositoryURL := createRepository(t)
-	project := domain.NewProject("project-1", "worker", repositoryURL)
+	project := domain.NewProject("project-1", "worker", repositoryURL, nil)
 	workspacer := local.NewWorkspacer(rootDir)
 	workspace, err := workspacer.PrepareWorkspace(t.Context(), project)
 

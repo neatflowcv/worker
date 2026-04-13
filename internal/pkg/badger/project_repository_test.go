@@ -29,7 +29,7 @@ func TestProjectRepository_CreatePersistsProject(t *testing.T) {
 	// Arrange
 	dir := t.TempDir()
 	repo, database := newProjectRepositoryAt(t, dir)
-	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
+	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git", nil)
 
 	// Act
 	err := repo.CreateProject(t.Context(), project)
@@ -54,13 +54,42 @@ func TestProjectRepository_CreatePersistsProject(t *testing.T) {
 	require.Equal(t, project.RepositoryURL(), projectByName.RepositoryURL())
 }
 
+func TestProjectRepository_CreatePersistsProjectAuth(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	dir := t.TempDir()
+	repo, database := newProjectRepositoryAt(t, dir)
+	project := domain.NewProject(
+		"project-1",
+		"worker",
+		"https://github.com/neatflowcv/worker.git",
+		domain.NewAuth("user", "pass"),
+	)
+
+	// Act
+	err := repo.CreateProject(t.Context(), project)
+	require.NoError(t, err)
+	require.NoError(t, database.Close())
+
+	reopened, _ := newProjectRepositoryAt(t, dir)
+	projectByName, err := reopened.GetProjectByName(t.Context(), "worker")
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, projectByName)
+	require.NotNil(t, projectByName.Auth())
+	require.Equal(t, "user", projectByName.Auth().Username())
+	require.Equal(t, "pass", projectByName.Auth().Password())
+}
+
 func TestProjectRepository_ListReturnsTwoProjects(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
 	repo := newProjectRepository(t)
-	first := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
-	second := domain.NewProject("project-2", "worker-docs", "https://github.com/neatflowcv/docs.git")
+	first := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git", nil)
+	second := domain.NewProject("project-2", "worker-docs", "https://github.com/neatflowcv/docs.git", nil)
 
 	require.NoError(t, repo.CreateProject(t.Context(), first))
 	require.NoError(t, repo.CreateProject(t.Context(), second))
@@ -84,8 +113,8 @@ func TestProjectRepository_GetByNameReturnsProject(t *testing.T) {
 
 	// Arrange
 	repo := newProjectRepository(t)
-	first := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
-	second := domain.NewProject("project-2", "worker-docs", "https://github.com/neatflowcv/docs.git")
+	first := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git", nil)
+	second := domain.NewProject("project-2", "worker-docs", "https://github.com/neatflowcv/docs.git", nil)
 
 	require.NoError(t, repo.CreateProject(t.Context(), first))
 	require.NoError(t, repo.CreateProject(t.Context(), second))
@@ -106,7 +135,7 @@ func TestProjectRepository_GetByNameReturnsNilWhenMissing(t *testing.T) {
 
 	// Arrange
 	repo := newProjectRepository(t)
-	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
+	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git", nil)
 
 	require.NoError(t, repo.CreateProject(t.Context(), project))
 

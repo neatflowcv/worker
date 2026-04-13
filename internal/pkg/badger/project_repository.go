@@ -21,9 +21,15 @@ type ProjectRepository struct {
 }
 
 type projectRecord struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	RepositoryURL string `json:"repositoryUrl"`
+	ID            string      `json:"id"`
+	Name          string      `json:"name"`
+	RepositoryURL string      `json:"repositoryUrl"`
+	Auth          *authRecord `json:"auth,omitempty"`
+}
+
+type authRecord struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 func NewProjectRepository(database *Database) *ProjectRepository {
@@ -37,6 +43,7 @@ func (r *ProjectRepository) CreateProject(ctx context.Context, project *domain.P
 		ID:            project.ID(),
 		Name:          project.Name(),
 		RepositoryURL: project.RepositoryURL(),
+		Auth:          newAuthRecord(project.Auth()),
 	}
 
 	value, err := json.Marshal(record)
@@ -101,7 +108,12 @@ func (r *ProjectRepository) ListProjects(ctx context.Context) ([]*domain.Project
 
 				projects = append(
 					projects,
-					domain.NewProject(record.ID, record.Name, record.RepositoryURL),
+					domain.NewProject(
+						record.ID,
+						record.Name,
+						record.RepositoryURL,
+						record.Auth.toDomain(),
+					),
 				)
 
 				return nil
@@ -217,7 +229,12 @@ func readProject(txn *badgerdb.Txn, id string) (*domain.Project, error) {
 			return fmt.Errorf("unmarshal project record: %w", err)
 		}
 
-		project = domain.NewProject(record.ID, record.Name, record.RepositoryURL)
+		project = domain.NewProject(
+			record.ID,
+			record.Name,
+			record.RepositoryURL,
+			record.Auth.toDomain(),
+		)
 
 		return nil
 	})
@@ -226,4 +243,23 @@ func readProject(txn *badgerdb.Txn, id string) (*domain.Project, error) {
 	}
 
 	return project, nil
+}
+
+func newAuthRecord(auth *domain.Auth) *authRecord {
+	if auth == nil {
+		return nil
+	}
+
+	return &authRecord{
+		Username: auth.Username(),
+		Password: auth.Password(),
+	}
+}
+
+func (r *authRecord) toDomain() *domain.Auth {
+	if r == nil {
+		return nil
+	}
+
+	return domain.NewAuth(r.Username, r.Password)
 }
