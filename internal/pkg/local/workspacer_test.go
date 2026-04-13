@@ -7,6 +7,7 @@ import (
 	"time"
 
 	git "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/neatflowcv/worker/internal/pkg/domain"
 	"github.com/neatflowcv/worker/internal/pkg/local"
@@ -86,6 +87,95 @@ func TestWorkspacer_PrepareWorkspaceReturnsWorkspace(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, filepath.Join(rootDir, "project-1"), workspace.Root())
 	require.Equal(t, filepath.Join(rootDir, "project-1", "main"), workspace.Main())
+}
+
+func TestWorkspacer_CreateWorktree(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	rootDir := t.TempDir()
+	repositoryURL := createRepository(t)
+	project := domain.NewProject("project-1", "worker", repositoryURL, nil)
+	item, err := domain.NewBacklogItem(
+		"backlog-1",
+		project.ID(),
+		"First",
+		"description",
+		domain.BacklogItemStatusOpen,
+		"000000000001",
+	)
+	require.NoError(t, err)
+
+	workspacer := local.NewWorkspacer(rootDir)
+	workspace, err := workspacer.PrepareWorkspace(t.Context(), project)
+	require.NoError(t, err)
+
+	// Act
+	worktree, err := workspacer.CreateWorktree(t.Context(), project, workspace, item)
+
+	// Assert
+	require.NoError(t, err)
+	require.Equal(t, item.ID(), worktree.Branch())
+	require.Equal(t, filepath.Join(rootDir, project.ID(), item.ID()), worktree.Dir())
+
+	info, err := os.Stat(worktree.Dir())
+	require.NoError(t, err)
+	require.True(t, info.IsDir())
+
+	readmePath := filepath.Join(worktree.Dir(), "README.md")
+	//nolint:gosec // Test reads a file from a path created within t.TempDir.
+	content, err := os.ReadFile(readmePath)
+	require.NoError(t, err)
+	require.Equal(t, "worker\n", string(content))
+
+	assertGitBranchExists(t, workspace.Main(), item.ID())
+}
+
+func TestWorkspacer_CloseWorktree(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	rootDir := t.TempDir()
+	repositoryURL := createRepository(t)
+	project := domain.NewProject("project-1", "worker", repositoryURL, nil)
+	item, err := domain.NewBacklogItem(
+		"backlog-1",
+		project.ID(),
+		"First",
+		"description",
+		domain.BacklogItemStatusOpen,
+		"000000000001",
+	)
+	require.NoError(t, err)
+
+	workspacer := local.NewWorkspacer(rootDir)
+	workspace, err := workspacer.PrepareWorkspace(t.Context(), project)
+	require.NoError(t, err)
+
+	worktree, err := workspacer.CreateWorktree(t.Context(), project, workspace, item)
+	require.NoError(t, err)
+
+	// Act
+	err = workspacer.CloseWorktree(t.Context(), project, worktree)
+
+	// Assert
+	require.NoError(t, err)
+	info, err := os.Stat(worktree.Dir())
+	require.NoError(t, err)
+	require.True(t, info.IsDir())
+	assertGitBranchExists(t, workspace.Main(), item.ID())
+	assertGitBranchExists(t, repositoryURL, item.ID())
+}
+
+func assertGitBranchExists(t *testing.T, repositoryDir string, branch string) {
+	t.Helper()
+
+	repository, err := git.PlainOpen(repositoryDir)
+	require.NoError(t, err)
+
+	reference, err := repository.Reference(plumbing.NewBranchReferenceName(branch), true)
+	require.NoError(t, err)
+	require.Equal(t, plumbing.NewBranchReferenceName(branch), reference.Name())
 }
 
 func createRepository(t *testing.T) string {

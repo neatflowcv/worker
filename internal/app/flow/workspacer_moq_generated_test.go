@@ -15,7 +15,7 @@ import (
 //
 //		// make and configure a mocked workspacer.Workspacer
 //		mockedWorkspace := &WorkspaceMock{
-//			PrepareWorkspaceFunc: func(ctx context.Context, project *domain.Project) error {
+//			PrepareWorkspaceFunc: func(ctx context.Context, project *domain.Project) (*domain.Workspace, error) {
 //				panic("mock out the PrepareWorkspace method")
 //			},
 //		}
@@ -27,6 +27,10 @@ import (
 type WorkspaceMock struct {
 	// PrepareWorkspaceFunc mocks the PrepareWorkspace method.
 	PrepareWorkspaceFunc func(ctx context.Context, project *domain.Project) (*domain.Workspace, error)
+	// CreateWorktreeFunc mocks the CreateWorktree method.
+	CreateWorktreeFunc func(ctx context.Context, project *domain.Project, workspace *domain.Workspace, item *domain.BacklogItem) (*domain.Worktree, error)
+	// CloseWorktreeFunc mocks the CloseWorktree method.
+	CloseWorktreeFunc func(ctx context.Context, project *domain.Project, worktree *domain.Worktree) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -37,8 +41,30 @@ type WorkspaceMock struct {
 			// Project is the project argument value.
 			Project *domain.Project
 		}
+		// CreateWorktree holds details about calls to the CreateWorktree method.
+		CreateWorktree []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Project is the project argument value.
+			Project *domain.Project
+			// Workspace is the workspace argument value.
+			Workspace *domain.Workspace
+			// Item is the item argument value.
+			Item *domain.BacklogItem
+		}
+		// CloseWorktree holds details about calls to the CloseWorktree method.
+		CloseWorktree []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Project is the project argument value.
+			Project *domain.Project
+			// Worktree is the worktree argument value.
+			Worktree *domain.Worktree
+		}
 	}
 	lockPrepareWorkspace sync.RWMutex
+	lockCreateWorktree   sync.RWMutex
+	lockCloseWorktree    sync.RWMutex
 }
 
 // PrepareWorkspace calls PrepareWorkspaceFunc.
@@ -74,5 +100,98 @@ func (mock *WorkspaceMock) PrepareWorkspaceCalls() []struct {
 	mock.lockPrepareWorkspace.RLock()
 	calls = mock.calls.PrepareWorkspace
 	mock.lockPrepareWorkspace.RUnlock()
+	return calls
+}
+
+// CreateWorktree calls CreateWorktreeFunc.
+func (mock *WorkspaceMock) CreateWorktree(
+	ctx context.Context,
+	project *domain.Project,
+	workspace *domain.Workspace,
+	item *domain.BacklogItem,
+) (*domain.Worktree, error) {
+	if mock.CreateWorktreeFunc == nil {
+		panic("WorkspaceMock.CreateWorktreeFunc: method is nil but Workspacer.CreateWorktree was just called")
+	}
+	callInfo := struct {
+		Ctx       context.Context
+		Project   *domain.Project
+		Workspace *domain.Workspace
+		Item      *domain.BacklogItem
+	}{
+		Ctx:       ctx,
+		Project:   project,
+		Workspace: workspace,
+		Item:      item,
+	}
+	mock.lockCreateWorktree.Lock()
+	mock.calls.CreateWorktree = append(mock.calls.CreateWorktree, callInfo)
+	mock.lockCreateWorktree.Unlock()
+	return mock.CreateWorktreeFunc(ctx, project, workspace, item)
+}
+
+// CreateWorktreeCalls gets all the calls that were made to CreateWorktree.
+// Check the length with:
+//
+//	len(mockedWorkspace.CreateWorktreeCalls())
+func (mock *WorkspaceMock) CreateWorktreeCalls() []struct {
+	Ctx       context.Context
+	Project   *domain.Project
+	Workspace *domain.Workspace
+	Item      *domain.BacklogItem
+} {
+	var calls []struct {
+		Ctx       context.Context
+		Project   *domain.Project
+		Workspace *domain.Workspace
+		Item      *domain.BacklogItem
+	}
+	mock.lockCreateWorktree.RLock()
+	calls = mock.calls.CreateWorktree
+	mock.lockCreateWorktree.RUnlock()
+	return calls
+}
+
+// CloseWorktree calls CloseWorktreeFunc.
+func (mock *WorkspaceMock) CloseWorktree(
+	ctx context.Context,
+	project *domain.Project,
+	worktree *domain.Worktree,
+) error {
+	if mock.CloseWorktreeFunc == nil {
+		panic("WorkspaceMock.CloseWorktreeFunc: method is nil but Workspacer.CloseWorktree was just called")
+	}
+	callInfo := struct {
+		Ctx      context.Context
+		Project  *domain.Project
+		Worktree *domain.Worktree
+	}{
+		Ctx:      ctx,
+		Project:  project,
+		Worktree: worktree,
+	}
+	mock.lockCloseWorktree.Lock()
+	mock.calls.CloseWorktree = append(mock.calls.CloseWorktree, callInfo)
+	mock.lockCloseWorktree.Unlock()
+	return mock.CloseWorktreeFunc(ctx, project, worktree)
+}
+
+// CloseWorktreeCalls gets all the calls that were made to CloseWorktree.
+// Check the length with:
+//
+//	len(mockedWorkspace.CloseWorktreeCalls())
+func (mock *WorkspaceMock) CloseWorktreeCalls() []struct {
+	Ctx      context.Context
+	Project  *domain.Project
+	Worktree *domain.Worktree
+} {
+	var calls []struct {
+		Ctx      context.Context
+		Project  *domain.Project
+		Worktree *domain.Worktree
+	}
+	mock.lockCloseWorktree.RLock()
+	calls = mock.calls.CloseWorktree
+	mock.lockCloseWorktree.RUnlock()
 	return calls
 }

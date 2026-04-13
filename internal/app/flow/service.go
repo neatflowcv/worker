@@ -198,6 +198,58 @@ func (s *Service) UpdateBacklogItem(
 	return updatedItem, nil
 }
 
+func (s *Service) StartBacklogItem(
+	ctx context.Context,
+	projectName string,
+	backlogItemID string,
+) (*domain.BacklogItem, error) {
+	project, err := s.projectRepository.GetProjectByName(ctx, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("get project by name: %w", err)
+	}
+
+	item, err := s.backlogItemRepository.GetBacklogItem(ctx, backlogItemID)
+	if err != nil {
+		return nil, fmt.Errorf("get backlog item: %w", err)
+	}
+
+	if item.ProjectID() != project.ID() {
+		return nil, repository.ErrBacklogItemNotFound
+	}
+
+	startedItem, err := item.Start()
+	if err != nil {
+		return nil, fmt.Errorf("start backlog item: %w", err)
+	}
+
+	workspace, err := s.workspacer.PrepareWorkspace(ctx, project)
+	if err != nil {
+		return nil, fmt.Errorf("prepare workspace: %w", err)
+	}
+
+	err = s.backlogItemRepository.UpdateBacklogItem(ctx, startedItem)
+	if err != nil {
+		return nil, fmt.Errorf("update backlog item repository: %w", err)
+	}
+
+	tree, err := s.workspacer.CreateWorktree(ctx, project, workspace, startedItem)
+	if err != nil {
+		return nil, fmt.Errorf("create worktree: %w", err)
+	}
+
+	err = s.backlogActionRunner.StartBacklogItem(ctx, tree.Dir(), startedItem)
+	if err != nil {
+		return nil, fmt.Errorf("start backlog item: %w", err)
+	}
+
+	err = s.workspacer.CloseWorktree(ctx, project, tree)
+	if err != nil {
+		return nil, fmt.Errorf("close worktree: %w", err)
+	}
+
+	return startedItem, nil
+}
+
 func (s *Service) RefineBacklogItem(
 	ctx context.Context,
 	projectName string,

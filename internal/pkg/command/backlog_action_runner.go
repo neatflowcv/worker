@@ -9,7 +9,7 @@ import (
 	"github.com/neatflowcv/worker/internal/pkg/domain"
 )
 
-const refineFileMode = 0o600
+const backlogFileMode = 0o600
 
 type backlogActionRunner struct {
 	runner Runner
@@ -25,6 +25,31 @@ func NewBacklogActionRunnerWithRunner(runner Runner) *backlogActionRunner {
 	}
 }
 
+func (r *backlogActionRunner) StartBacklogItem(
+	ctx context.Context,
+	projectDir string,
+	item *domain.BacklogItem,
+) error {
+	fileName := item.ID() + ".md"
+	filePath := filepath.Join(projectDir, fileName)
+
+	err := os.WriteFile(filePath, []byte(item.Description()), backlogFileMode)
+	if err != nil {
+		return fmt.Errorf("write start file: %w", err)
+	}
+
+	defer func() {
+		_ = os.Remove(filePath)
+	}()
+
+	err = r.runner.Run(ctx, projectDir, buildBacklogStartPrompt(fileName, item))
+	if err != nil {
+		return fmt.Errorf("execute codex start: %w", err)
+	}
+
+	return nil
+}
+
 func (r *backlogActionRunner) RefineBacklogItem(
 	ctx context.Context,
 	projectDir string,
@@ -33,7 +58,7 @@ func (r *backlogActionRunner) RefineBacklogItem(
 	fileName := item.ID() + ".md"
 	filePath := filepath.Join(projectDir, fileName)
 
-	err := os.WriteFile(filePath, []byte(item.Description()), refineFileMode)
+	err := os.WriteFile(filePath, []byte(item.Description()), backlogFileMode)
 	if err != nil {
 		return nil, fmt.Errorf("write refine file: %w", err)
 	}
@@ -70,6 +95,20 @@ func buildBacklogRefinePrompt(fileName string, item *domain.BacklogItem) string 
 
 	return fmt.Sprintf(
 		"%q 파일의 계획을 더 명확하고 간결하게 정리해. 만약, 추가적으로 결정해야 할 사항이 있다면, 추가해.",
+		fileName,
+	)
+}
+
+func buildBacklogStartPrompt(fileName string, item *domain.BacklogItem) string {
+	if item.Description() == "" {
+		return fmt.Sprintf(
+			"%q 작업을 수행해.",
+			item.Title(),
+		)
+	}
+
+	return fmt.Sprintf(
+		"%q 파일에 명시된 작업을 수행해.",
 		fileName,
 	)
 }

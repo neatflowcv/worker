@@ -14,6 +14,74 @@ import (
 
 var errRunner = errors.New("runner error")
 
+func TestNewBacklogActionRunnerWithRunnerStartBacklogItem(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	projectDir := t.TempDir()
+	item := mustNewBacklogItem(
+		t,
+		"Start title",
+		"implement the start flow",
+	)
+
+	var (
+		gotDir    string
+		gotPrompt string
+	)
+
+	actionRunner := command.NewBacklogActionRunnerWithRunner(
+		runnerFunc(func(_ context.Context, dir string, prompt string) error {
+			gotDir = dir
+			gotPrompt = prompt
+			//nolint:gosec // The test reads a file created under the temp project directory.
+			content, err := os.ReadFile(filepath.Join(dir, "backlog-1.md"))
+			require.NoError(t, err)
+			require.Equal(t, "implement the start flow", string(content))
+
+			return nil
+		}),
+	)
+
+	// Act
+	err := actionRunner.StartBacklogItem(t.Context(), projectDir, item)
+
+	// Assert
+	require.NoError(t, err)
+	require.Equal(t, projectDir, gotDir)
+	require.Equal(
+		t,
+		`"backlog-1.md" 파일에 명시된 작업을 수행해.`,
+		gotPrompt,
+	)
+
+	_, err = os.Stat(filepath.Join(projectDir, "backlog-1.md"))
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestNewBacklogActionRunnerWithRunnerStartBacklogItemReturnsErrorWhenRunnerFails(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	projectDir := t.TempDir()
+	item := mustNewBacklogItem(
+		t,
+		"Start title",
+		"implement the start flow",
+	)
+	actionRunner := command.NewBacklogActionRunnerWithRunner(
+		runnerFunc(func(_ context.Context, _ string, _ string) error {
+			return errRunner
+		}),
+	)
+
+	// Act
+	err := actionRunner.StartBacklogItem(t.Context(), projectDir, item)
+
+	// Assert
+	require.ErrorIs(t, err, errRunner)
+}
+
 func TestNewBacklogActionRunnerWithRunnerRefineBacklogItem(t *testing.T) {
 	t.Parallel()
 
@@ -21,11 +89,8 @@ func TestNewBacklogActionRunnerWithRunnerRefineBacklogItem(t *testing.T) {
 	projectDir := t.TempDir()
 	item := mustNewBacklogItem(
 		t,
-		"backlog-1",
-		"project-1",
 		"Refine title",
 		"original body",
-		"001",
 	)
 
 	var (
@@ -74,11 +139,8 @@ func TestNewBacklogActionRunnerWithRunnerReturnsErrorWhenRunnerFails(t *testing.
 	projectDir := t.TempDir()
 	item := mustNewBacklogItem(
 		t,
-		"backlog-1",
-		"project-1",
 		"Refine title",
 		"original body",
-		"001",
 	)
 	actionRunner := command.NewBacklogActionRunnerWithRunner(
 		runnerFunc(func(_ context.Context, _ string, _ string) error {
@@ -99,7 +161,7 @@ func TestNewBacklogActionRunnerWithRunnerBuildsDraftPromptWhenDescriptionIsEmpty
 
 	// Arrange
 	projectDir := t.TempDir()
-	item := mustNewBacklogItem(t, "backlog-1", "project-1", "Draft title", "", "001")
+	item := mustNewBacklogItem(t, "Draft title", "")
 
 	var gotPrompt string
 
@@ -131,6 +193,42 @@ func TestNewBacklogActionRunnerWithRunnerBuildsDraftPromptWhenDescriptionIsEmpty
 	)
 }
 
+func TestNewBacklogActionRunnerWithRunnerBuildsStartPromptWhenDescriptionIsEmpty(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	projectDir := t.TempDir()
+	item := mustNewBacklogItem(t, "Draft title", "")
+
+	var gotPrompt string
+
+	actionRunner := command.NewBacklogActionRunnerWithRunner(
+		runnerFunc(func(_ context.Context, _ string, prompt string) error {
+			gotPrompt = prompt
+			//nolint:gosec // The test reads a file created under the temp project directory.
+			content, err := os.ReadFile(filepath.Join(projectDir, "backlog-1.md"))
+			require.NoError(t, err)
+			require.Empty(t, string(content))
+
+			return nil
+		}),
+	)
+
+	// Act
+	err := actionRunner.StartBacklogItem(t.Context(), projectDir, item)
+
+	// Assert
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		`"Draft title" 작업을 수행해.`,
+		gotPrompt,
+	)
+
+	_, err = os.Stat(filepath.Join(projectDir, "backlog-1.md"))
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
 type runnerFunc func(ctx context.Context, dir string, prompt string) error
 
 func (f runnerFunc) Run(ctx context.Context, dir string, prompt string) error {
@@ -139,21 +237,18 @@ func (f runnerFunc) Run(ctx context.Context, dir string, prompt string) error {
 
 func mustNewBacklogItem(
 	t *testing.T,
-	id string,
-	projectID string,
 	title string,
 	description string,
-	orderKey string,
 ) *domain.BacklogItem {
 	t.Helper()
 
 	item, err := domain.NewBacklogItem(
-		id,
-		projectID,
+		"backlog-1",
+		"project-1",
 		title,
 		description,
 		domain.BacklogItemStatusOpen,
-		orderKey,
+		"001",
 	)
 	require.NoError(t, err)
 
