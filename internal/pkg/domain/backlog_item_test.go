@@ -50,3 +50,53 @@ func TestNewBacklogItem(t *testing.T) {
 		require.Nil(t, item)
 	})
 }
+
+func TestBacklogItem_Start(t *testing.T) {
+	t.Parallel()
+
+	t.Run("starts item when status is open", func(t *testing.T) {
+		t.Parallel()
+
+		// Arrange
+		item, err := domain.NewBacklogItem(
+			"backlog-1",
+			"project-1",
+			"First",
+			"desc",
+			domain.BacklogItemStatusOpen,
+			"000000000001",
+		)
+		require.NoError(t, err)
+
+		// Act
+		startedItem, err := item.Start()
+
+		// Assert
+		require.NoError(t, err)
+		require.Equal(t, domain.BacklogItemStatusRunning, startedItem.Status())
+		require.Equal(t, domain.BacklogItemStatusOpen, item.Status())
+	})
+
+	t.Run("returns error when status is not open", func(t *testing.T) {
+		t.Parallel()
+
+		// Arrange
+		item, err := domain.NewBacklogItem(
+			"backlog-1",
+			"project-1",
+			"First",
+			"desc",
+			domain.BacklogItemStatusBlocked,
+			"000000000001",
+		)
+		require.NoError(t, err)
+
+		// Act
+		startedItem, err := item.Start()
+
+		// Assert
+		require.ErrorIs(t, err, domain.ErrBacklogItemCannotStart)
+		require.Nil(t, startedItem)
+		require.Equal(t, domain.BacklogItemStatusBlocked, item.Status())
+	})
+}

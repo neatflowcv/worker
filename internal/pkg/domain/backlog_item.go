@@ -13,6 +13,7 @@ type BacklogItem struct {
 }
 
 var ErrBacklogItemTitleRequired = errors.New("backlog item title is required")
+var ErrBacklogItemCannotStart = errors.New("cannot start backlog item")
 
 func NewBacklogItem(
 	id, projectID, title, description string,
@@ -76,6 +77,17 @@ func (i *BacklogItem) SetTitle(title string) (*BacklogItem, error) {
 
 	item := i.clone()
 	item.title = title
+
+	return item, nil
+}
+
+func (i *BacklogItem) Start() (*BacklogItem, error) {
+	if i.status != BacklogItemStatusOpen {
+		return nil, ErrBacklogItemCannotStart
+	}
+
+	item := i.clone()
+	item.status = BacklogItemStatusRunning
 
 	return item, nil
 }
