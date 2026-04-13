@@ -13,17 +13,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWorkspace_PrepareWorkspace(t *testing.T) {
+func TestWorkspacer_PrepareWorkspace(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
 	rootDir := t.TempDir()
 	repositoryURL := createRepository(t)
 	project := domain.NewProject("project-1", "worker", repositoryURL)
-	workspace := local.NewWorkspace(rootDir)
+	workspacer := local.NewWorkspacer(rootDir)
 
 	// Act
-	err := workspace.PrepareWorkspace(t.Context(), project)
+	err := workspacer.PrepareWorkspace(t.Context(), project)
 
 	// Assert
 	require.NoError(t, err)
@@ -41,22 +41,22 @@ func TestWorkspace_PrepareWorkspace(t *testing.T) {
 	require.Equal(t, "worker\n", string(content))
 }
 
-func TestWorkspace_PrepareWorkspacePullsWhenRepositoryExists(t *testing.T) {
+func TestWorkspacer_PrepareWorkspacePullsWhenRepositoryExists(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
 	rootDir := t.TempDir()
 	repositoryURL := createRepository(t)
 	project := domain.NewProject("project-1", "worker", repositoryURL)
-	workspace := local.NewWorkspace(rootDir)
+	workspacer := local.NewWorkspacer(rootDir)
 
-	err := workspace.PrepareWorkspace(t.Context(), project)
+	err := workspacer.PrepareWorkspace(t.Context(), project)
 	require.NoError(t, err)
 
 	appendCommitToRepository(t, repositoryURL, "README.md", "updated\n", "update readme")
 
 	// Act
-	err = workspace.PrepareWorkspace(t.Context(), project)
+	err = workspacer.PrepareWorkspace(t.Context(), project)
 
 	// Assert
 	require.NoError(t, err)
@@ -68,34 +68,34 @@ func TestWorkspace_PrepareWorkspacePullsWhenRepositoryExists(t *testing.T) {
 	require.Equal(t, "worker\nupdated\n", string(content))
 }
 
-func TestWorkspace_ProjectDir(t *testing.T) {
+func TestWorkspacer_ProjectDir(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
 	rootDir := t.TempDir()
 	repositoryURL := createRepository(t)
 	project := domain.NewProject("project-1", "worker", repositoryURL)
-	workspace := local.NewWorkspace(rootDir)
-	err := workspace.PrepareWorkspace(t.Context(), project)
+	workspacer := local.NewWorkspacer(rootDir)
+	err := workspacer.PrepareWorkspace(t.Context(), project)
 	require.NoError(t, err)
 
 	// Act
-	projectDir, err := workspace.ProjectDir(t.Context(), project)
+	projectDir, err := workspacer.ProjectDir(t.Context(), project)
 
 	// Assert
 	require.NoError(t, err)
 	require.Equal(t, filepath.Join(rootDir, "project-1", "main"), projectDir)
 }
 
-func TestWorkspace_ProjectDirReturnsErrorWhenWorkspaceDoesNotExist(t *testing.T) {
+func TestWorkspacer_ProjectDirReturnsErrorWhenWorkspaceDoesNotExist(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
-	workspace := local.NewWorkspace(t.TempDir())
+	workspacer := local.NewWorkspacer(t.TempDir())
 	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git")
 
 	// Act
-	projectDir, err := workspace.ProjectDir(t.Context(), project)
+	projectDir, err := workspacer.ProjectDir(t.Context(), project)
 
 	// Assert
 	require.Error(t, err)

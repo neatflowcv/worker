@@ -11,26 +11,26 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/neatflowcv/worker/internal/pkg/domain"
-	"github.com/neatflowcv/worker/internal/pkg/workspace"
+	workspacerpkg "github.com/neatflowcv/worker/internal/pkg/workspacer"
 )
 
-var _ workspace.Workspace = (*Workspace)(nil)
+var _ workspacerpkg.Workspacer = (*Workspacer)(nil)
 
 const projectDirMode = 0o750
 
 var errProjectDirNotDirectory = errors.New("project directory is not a directory")
 
-type Workspace struct {
+type Workspacer struct {
 	rootDir string
 }
 
-func NewWorkspace(rootDir string) *Workspace {
-	return &Workspace{
+func NewWorkspacer(rootDir string) *Workspacer {
+	return &Workspacer{
 		rootDir: rootDir,
 	}
 }
 
-func (w *Workspace) PrepareWorkspace(ctx context.Context, project *domain.Project) error {
+func (w *Workspacer) PrepareWorkspace(ctx context.Context, project *domain.Project) error {
 	projectDir := filepath.Join(w.rootDir, project.ID())
 
 	err := os.MkdirAll(projectDir, projectDirMode)
@@ -48,7 +48,7 @@ func (w *Workspace) PrepareWorkspace(ctx context.Context, project *domain.Projec
 	return nil
 }
 
-func (w *Workspace) ProjectDir(_ context.Context, project *domain.Project) (string, error) {
+func (w *Workspacer) ProjectDir(_ context.Context, project *domain.Project) (string, error) {
 	projectDir := filepath.Join(w.rootDir, project.ID(), "main")
 
 	info, err := os.Stat(projectDir)
@@ -63,7 +63,7 @@ func (w *Workspace) ProjectDir(_ context.Context, project *domain.Project) (stri
 	return projectDir, nil
 }
 
-func (w *Workspace) ensureRepository(ctx context.Context, mainDir string, project *domain.Project) error {
+func (w *Workspacer) ensureRepository(ctx context.Context, mainDir string, project *domain.Project) error {
 	_, err := git.PlainCloneContext(ctx, mainDir, false, newCloneOptions(project))
 	if err == nil {
 		return nil

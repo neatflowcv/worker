@@ -27,9 +27,9 @@ func Run() error {
 	projectRepository := projectbadger.NewProjectRepository(database)
 	backlogItemRepository := projectbadger.NewBacklogItemRepository(database)
 
-	projectWorkspace, err := newWorkspace()
+	projectWorkspacer, err := newWorkspacer()
 	if err != nil {
-		return fmt.Errorf("create workspace: %w", err)
+		return fmt.Errorf("create workspacer: %w", err)
 	}
 
 	backlogActionRunner := command.NewBacklogActionRunner()
@@ -41,7 +41,7 @@ func Run() error {
 		flow.NewService(
 			projectRepository,
 			backlogItemRepository,
-			projectWorkspace,
+			projectWorkspacer,
 			backlogActionRunner,
 		),
 	)
@@ -88,13 +88,13 @@ func newDatabase() (*projectbadger.Database, error) {
 	return database, nil
 }
 
-func newWorkspace() (*local.Workspace, error) {
+func newWorkspacer() (*local.Workspacer, error) {
 	dataHome, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("resolve user home directory: %w", err)
 	}
 
-	return local.NewWorkspace(
+	return local.NewWorkspacer(
 		filepath.Join(dataHome, ".local", "share", "worker", "projects"),
 	), nil
 }

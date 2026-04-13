@@ -9,18 +9,18 @@ import (
 	"sync"
 )
 
-// WorkspaceMock is a mock implementation of workspace.Workspace.
+// WorkspaceMock is a mock implementation of workspacer.Workspacer.
 //
 //	func TestSomethingThatUsesWorkspace(t *testing.T) {
 //
-//		// make and configure a mocked workspace.Workspace
+//		// make and configure a mocked workspacer.Workspacer
 //		mockedWorkspace := &WorkspaceMock{
 //			PrepareWorkspaceFunc: func(ctx context.Context, project *domain.Project) error {
 //				panic("mock out the PrepareWorkspace method")
 //			},
 //		}
 //
-//		// use mockedWorkspace in code that requires workspace.Workspace
+//		// use mockedWorkspace in code that requires workspacer.Workspacer
 //		// and then make assertions.
 //
 //	}
@@ -54,7 +54,7 @@ type WorkspaceMock struct {
 // PrepareWorkspace calls PrepareWorkspaceFunc.
 func (mock *WorkspaceMock) PrepareWorkspace(ctx context.Context, project *domain.Project) error {
 	if mock.PrepareWorkspaceFunc == nil {
-		panic("WorkspaceMock.PrepareWorkspaceFunc: method is nil but Workspace.PrepareWorkspace was just called")
+		panic("WorkspaceMock.PrepareWorkspaceFunc: method is nil but Workspacer.PrepareWorkspace was just called")
 	}
 	callInfo := struct {
 		Ctx     context.Context
@@ -90,7 +90,7 @@ func (mock *WorkspaceMock) PrepareWorkspaceCalls() []struct {
 // ProjectDir calls ProjectDirFunc.
 func (mock *WorkspaceMock) ProjectDir(ctx context.Context, project *domain.Project) (string, error) {
 	if mock.ProjectDirFunc == nil {
-		panic("WorkspaceMock.ProjectDirFunc: method is nil but Workspace.ProjectDir was just called")
+		panic("WorkspaceMock.ProjectDirFunc: method is nil but Workspacer.ProjectDir was just called")
 	}
 	callInfo := struct {
 		Ctx     context.Context

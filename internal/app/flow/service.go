@@ -8,7 +8,7 @@ import (
 	"github.com/neatflowcv/worker/internal/pkg/domain"
 	"github.com/neatflowcv/worker/internal/pkg/repository"
 	"github.com/neatflowcv/worker/internal/pkg/runner"
-	workspacepkg "github.com/neatflowcv/worker/internal/pkg/workspace"
+	workspacerpkg "github.com/neatflowcv/worker/internal/pkg/workspacer"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -19,20 +19,20 @@ const defaultBacklogItemLimit = 20
 type Service struct {
 	projectRepository     repository.ProjectRepository
 	backlogItemRepository repository.BacklogItemRepository
-	workspace             workspacepkg.Workspace
+	workspacer            workspacerpkg.Workspacer
 	backlogActionRunner   runner.BacklogActionRunner
 }
 
 func NewService(
 	projectRepository repository.ProjectRepository,
 	backlogItemRepository repository.BacklogItemRepository,
-	workspace workspacepkg.Workspace,
+	workspacer workspacerpkg.Workspacer,
 	backlogActionRunner runner.BacklogActionRunner,
 ) *Service {
 	return &Service{
 		projectRepository:     projectRepository,
 		backlogItemRepository: backlogItemRepository,
-		workspace:             workspace,
+		workspacer:            workspacer,
 		backlogActionRunner:   backlogActionRunner,
 	}
 }
@@ -49,7 +49,7 @@ func (s *Service) CreateProject(ctx context.Context, name, url string) (*domain.
 
 	project := domain.NewProject(ulid.Make().String(), name, url)
 
-	err = s.workspace.PrepareWorkspace(ctx, project)
+	err = s.workspacer.PrepareWorkspace(ctx, project)
 	if err != nil {
 		return nil, fmt.Errorf("prepare workspace: %w", err)
 	}
@@ -212,12 +212,12 @@ func (s *Service) RefineBacklogItem(
 		return nil, repository.ErrBacklogItemNotFound
 	}
 
-	err = s.workspace.PrepareWorkspace(ctx, project)
+	err = s.workspacer.PrepareWorkspace(ctx, project)
 	if err != nil {
 		return nil, fmt.Errorf("prepare workspace: %w", err)
 	}
 
-	projectDir, err := s.workspace.ProjectDir(ctx, project)
+	projectDir, err := s.workspacer.ProjectDir(ctx, project)
 	if err != nil {
 		return nil, fmt.Errorf("get project directory: %w", err)
 	}
