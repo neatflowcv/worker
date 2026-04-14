@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker-db
+spec:
+  selector:
+    app: worker-db
+  ports:
+    - port: 5432
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: worker-db-secret
+type: Opaque
+stringData:
+  password: "password_change_me"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: worker-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-db
+  template:
+    metadata:
+      labels:
+        app: worker-db
+    spec:
+      containers:
+        - name: postgresql
+          image: docker.io/postgres:latest
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: "worker"
+            - name: POSTGRES_USER
+              value: "worker"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: worker-db-secret
+                  key: password
+          volumeMounts:
+            - name: postgresql-volume
+              mountPath: /var/lib/postgresql
+      volumes:
+        - name: postgresql-volume
+          persistentVolumeClaim:
+            claimName: worker-pvc
