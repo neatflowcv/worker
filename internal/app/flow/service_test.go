@@ -568,6 +568,7 @@ func TestService_UpdateBacklogItemReturnsErrorWhenRepositoryUpdateFails(t *testi
 func TestService_StartBacklogItem(t *testing.T) {
 	t.Parallel()
 
+	// Arrange
 	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git", nil)
 	projectRepository := newProjectRepositoryMock()
 	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
@@ -579,10 +580,10 @@ func TestService_StartBacklogItem(t *testing.T) {
 		return existingItem, nil
 	}
 
-	var updatedItem *domain.BacklogItem
+	var updatedItems []*domain.BacklogItem
 
 	backlogItemRepository.UpdateBacklogItemFunc = func(_ context.Context, item *domain.BacklogItem) error {
-		updatedItem = item
+		updatedItems = append(updatedItems, item)
 
 		return nil
 	}
@@ -593,24 +594,29 @@ func TestService_StartBacklogItem(t *testing.T) {
 	setRecommendWorktreeSuccess(
 		t,
 		executor,
-		"/tmp/project-1/main",
 		existingItem.ID(),
 	)
 	service := flow.NewService(projectRepository, backlogItemRepository, workspace, executor)
 
+	// Act
 	item, err := service.StartBacklogItem(t.Context(), "worker", "backlog-1")
 
+	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, item)
 	require.NotSame(t, existingItem, item)
-	require.Equal(t, domain.BacklogItemStatusRunning, item.Status())
+	require.Equal(t, domain.BacklogItemStatusBlocked, item.Status())
 	require.Equal(t, domain.BacklogItemStatusOpen, existingItem.Status())
-	require.Same(t, item, updatedItem)
+	require.Len(t, updatedItems, 2)
+	require.Equal(t, domain.BacklogItemStatusRunning, updatedItems[0].Status())
+	require.Same(t, item, updatedItems[1])
+	require.Equal(t, domain.BacklogItemStatusBlocked, updatedItems[1].Status())
 	require.Len(t, workspace.PrepareWorkspaceCalls(), 1)
 	require.Len(t, workspace.CreateWorktreeCalls(), 1)
+	require.Len(t, workspace.CloseWorktreeCalls(), 1)
 	require.Len(t, executor.RecommendWorktreeCalls(), 1)
 	require.Len(t, backlogItemRepository.GetBacklogItemCalls(), 1)
-	require.Len(t, backlogItemRepository.UpdateBacklogItemCalls(), 1)
+	require.Len(t, backlogItemRepository.UpdateBacklogItemCalls(), 2)
 }
 
 func TestService_StartBacklogItemReturnsErrorWhenProjectDoesNotExist(t *testing.T) {
@@ -743,7 +749,6 @@ func TestService_StartBacklogItemReturnsErrorWhenCreateWorktreeFails(t *testing.
 	setRecommendWorktreeSuccess(
 		t,
 		executor,
-		"/tmp/project-1/main",
 		"backlog-1",
 	)
 	service := flow.NewService(projectRepository, backlogItemRepository, workspace, executor)
@@ -796,7 +801,6 @@ func TestService_StartBacklogItemReturnsErrorWhenRepositoryFails(t *testing.T) {
 	setRecommendWorktreeSuccess(
 		t,
 		executor,
-		"/tmp/project-1/main",
 		"backlog-1",
 	)
 	service := flow.NewService(projectRepository, backlogItemRepository, workspace, executor)
@@ -808,6 +812,58 @@ func TestService_StartBacklogItemReturnsErrorWhenRepositoryFails(t *testing.T) {
 	require.Len(t, workspace.PrepareWorkspaceCalls(), 1)
 	require.Empty(t, executor.RecommendWorktreeCalls())
 	require.Empty(t, workspace.CreateWorktreeCalls())
+}
+
+func TestService_StartBacklogItemReturnsErrorWhenFinalRepositoryUpdateFails(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git", nil)
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return project, nil
+	}
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return mustNewBacklogItem(t, "backlog-1", "project-1", "Before", "old", "000000000001"), nil
+	}
+
+	updateCount := 0
+	backlogItemRepository.UpdateBacklogItemFunc = func(_ context.Context, item *domain.BacklogItem) error {
+		updateCount++
+		if updateCount == 1 {
+			require.Equal(t, domain.BacklogItemStatusRunning, item.Status())
+
+			return nil
+		}
+
+		require.Equal(t, domain.BacklogItemStatusBlocked, item.Status())
+
+		return errBacklogItemRepository
+	}
+
+	workspace := newWorkspaceMock()
+	setStartBacklogItemWorkspaceSuccess(t, workspace, project)
+
+	executor := newBacklogActionRunnerMock()
+	setRecommendWorktreeSuccess(
+		t,
+		executor,
+		"backlog-1",
+	)
+	service := flow.NewService(projectRepository, backlogItemRepository, workspace, executor)
+
+	// Act
+	item, err := service.StartBacklogItem(t.Context(), "worker", "backlog-1")
+
+	// Assert
+	require.ErrorIs(t, err, errBacklogItemRepository)
+	require.Nil(t, item)
+	require.Len(t, workspace.PrepareWorkspaceCalls(), 1)
+	require.Len(t, workspace.CreateWorktreeCalls(), 1)
+	require.Len(t, workspace.CloseWorktreeCalls(), 1)
+	require.Len(t, executor.RecommendWorktreeCalls(), 1)
+	require.Len(t, backlogItemRepository.UpdateBacklogItemCalls(), 2)
 }
 
 func TestService_RefineBacklogItem(t *testing.T) {
@@ -1148,7 +1204,6 @@ func newBacklogActionRunnerMock() *BacklogActionRunnerMock {
 func setRecommendWorktreeSuccess(
 	t *testing.T,
 	mock *BacklogActionRunnerMock,
-	projectDir string,
 	itemID string,
 ) {
 	t.Helper()
@@ -1158,7 +1213,7 @@ func setRecommendWorktreeSuccess(
 		gotProjectDir string,
 		gotItem *domain.BacklogItem,
 	) (*domain.Worktree, error) {
-		require.Equal(t, projectDir, gotProjectDir)
+		require.Equal(t, "/tmp/project-1/main", gotProjectDir)
 		require.Equal(t, itemID, gotItem.ID())
 		require.Equal(t, domain.BacklogItemStatusRunning, gotItem.Status())
 

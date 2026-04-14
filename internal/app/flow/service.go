@@ -261,7 +261,17 @@ func (s *Service) StartBacklogItem(
 		return nil, fmt.Errorf("close worktree: %w", err)
 	}
 
-	return startedItem, nil
+	blockedItem, err := startedItem.Blocked()
+	if err != nil {
+		return nil, fmt.Errorf("block backlog item: %w", err)
+	}
+
+	err = s.backlogItemRepository.UpdateBacklogItem(ctx, blockedItem)
+	if err != nil {
+		return nil, fmt.Errorf("update backlog item repository: %w", err)
+	}
+
+	return blockedItem, nil
 }
 
 func (s *Service) RefineBacklogItem(
