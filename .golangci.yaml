@@ -4,5 +4,7 @@ linters:
   disable:
     - revive
     - depguard
+    - ireturn
+    - tagliatelle
     - varnamelen
     - wsl # deprecated
