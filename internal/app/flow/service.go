@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 
 	"github.com/neatflowcv/worker/internal/pkg/domain"
 	"github.com/neatflowcv/worker/internal/pkg/repository"
@@ -304,4 +305,62 @@ func (s *Service) RefineBacklogItem(
 	}
 
 	return refinedItem, nil
+}
+
+func (s *Service) FeedbackBacklogItem(
+	ctx context.Context,
+	projectName string,
+	backlogItemID string,
+	message string,
+) (*domain.BacklogItem, error) {
+	project, err := s.projectRepository.GetProjectByName(ctx, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("get project by name: %w", err)
+	}
+
+	item, err := s.backlogItemRepository.GetBacklogItem(ctx, backlogItemID)
+	if err != nil {
+		return nil, fmt.Errorf("get backlog item: %w", err)
+	}
+
+	if item.ProjectID() != project.ID() {
+		return nil, repository.ErrBacklogItemNotFound
+	}
+
+	resumedItem, err := item.Resume()
+	if err != nil {
+		return nil, fmt.Errorf("resume backlog item: %w", err)
+	}
+
+	err = s.backlogItemRepository.UpdateBacklogItem(ctx, resumedItem)
+	if err != nil {
+		return nil, fmt.Errorf("update backlog item repository: %w", err)
+	}
+
+	workspace, err := s.workspacer.PrepareWorkspace(ctx, project)
+	if err != nil {
+		return nil, fmt.Errorf("prepare workspace: %w", err)
+	}
+
+	err = s.backlogActionRunner.FeedbackBacklogItem(
+		ctx,
+		filepath.Join(workspace.Root(), resumedItem.ID()),
+		resumedItem,
+		message,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("feedback backlog item: %w", err)
+	}
+
+	blockedItem, err := resumedItem.Blocked()
+	if err != nil {
+		return nil, fmt.Errorf("block backlog item: %w", err)
+	}
+
+	err = s.backlogItemRepository.UpdateBacklogItem(ctx, blockedItem)
+	if err != nil {
+		return nil, fmt.Errorf("update backlog item repository: %w", err)
+	}
+
+	return blockedItem, nil
 }

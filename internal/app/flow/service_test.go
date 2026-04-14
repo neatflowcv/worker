@@ -1067,6 +1067,242 @@ func TestService_RefineBacklogItemReturnsErrorWhenRepositoryFails(t *testing.T) 
 	require.Empty(t, executor.RefineBacklogItemCalls())
 }
 
+func TestService_FeedbackBacklogItem(t *testing.T) {
+	t.Parallel()
+
+	service, backlogItemRepository, workspace, executor, updatedItems := newFeedbackServiceForSuccessTest(t)
+
+	item, err := service.FeedbackBacklogItem(t.Context(), "worker", "backlog-1", "feedback message")
+
+	require.NoError(t, err)
+	require.NotNil(t, item)
+	require.Same(t, (*updatedItems)[1], item)
+	require.Equal(t, domain.BacklogItemStatusBlocked, item.Status())
+	require.Len(t, *updatedItems, 2)
+	require.Equal(t, domain.BacklogItemStatusRunning, (*updatedItems)[0].Status())
+	require.Equal(t, domain.BacklogItemStatusBlocked, (*updatedItems)[1].Status())
+	require.Len(t, backlogItemRepository.UpdateBacklogItemCalls(), 2)
+	require.Len(t, workspace.PrepareWorkspaceCalls(), 1)
+	require.Len(t, executor.FeedbackBacklogItemCalls(), 1)
+}
+
+func TestService_FeedbackBacklogItemReturnsErrorWhenBacklogItemBelongsToAnotherProject(t *testing.T) {
+	t.Parallel()
+
+	service, backlogItemRepository, workspace, executor := newFeedbackServiceForErrorTest(
+		t,
+		mustNewBacklogItemWithStatus(
+			t,
+			"backlog-1",
+			"project-2",
+			"First",
+			"desc",
+			domain.BacklogItemStatusBlocked,
+			"000000000001",
+		),
+	)
+
+	item, err := service.FeedbackBacklogItem(t.Context(), "worker", "backlog-1", "feedback message")
+
+	require.ErrorIs(t, err, repository.ErrBacklogItemNotFound)
+	require.Nil(t, item)
+	require.Empty(t, backlogItemRepository.UpdateBacklogItemCalls())
+	require.Empty(t, workspace.PrepareWorkspaceCalls())
+	require.Empty(t, executor.FeedbackBacklogItemCalls())
+}
+
+func TestService_FeedbackBacklogItemReturnsErrorWhenStatusIsNotBlocked(t *testing.T) {
+	t.Parallel()
+
+	service, backlogItemRepository, workspace, executor := newFeedbackServiceForErrorTest(
+		t,
+		mustNewBacklogItemWithStatus(
+			t,
+			"backlog-1",
+			"project-1",
+			"First",
+			"desc",
+			domain.BacklogItemStatusRunning,
+			"000000000001",
+		),
+	)
+
+	item, err := service.FeedbackBacklogItem(t.Context(), "worker", "backlog-1", "feedback message")
+
+	require.ErrorIs(t, err, domain.ErrBacklogItemCannotResume)
+	require.Nil(t, item)
+	require.Empty(t, backlogItemRepository.UpdateBacklogItemCalls())
+	require.Empty(t, workspace.PrepareWorkspaceCalls())
+	require.Empty(t, executor.FeedbackBacklogItemCalls())
+}
+
+func TestService_FeedbackBacklogItemReturnsErrorWhenUpdateFails(t *testing.T) {
+	t.Parallel()
+
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git", nil), nil
+	}
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return mustNewBacklogItemWithStatus(
+			t,
+			"backlog-1",
+			"project-1",
+			"First",
+			"desc",
+			domain.BacklogItemStatusBlocked,
+			"000000000001",
+		), nil
+	}
+	backlogItemRepository.UpdateBacklogItemFunc = func(_ context.Context, _ *domain.BacklogItem) error {
+		return errBacklogItemRepository
+	}
+	workspace := newWorkspaceMock()
+	executor := newBacklogActionRunnerMock()
+	service := flow.NewService(projectRepository, backlogItemRepository, workspace, executor)
+
+	item, err := service.FeedbackBacklogItem(t.Context(), "worker", "backlog-1", "feedback message")
+
+	require.ErrorIs(t, err, errBacklogItemRepository)
+	require.Nil(t, item)
+	require.Empty(t, workspace.PrepareWorkspaceCalls())
+	require.Empty(t, executor.FeedbackBacklogItemCalls())
+}
+
+func TestService_FeedbackBacklogItemReturnsErrorWhenPrepareWorkspaceFails(t *testing.T) {
+	t.Parallel()
+
+	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git", nil)
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return project, nil
+	}
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return mustNewBacklogItemWithStatus(
+			t,
+			"backlog-1",
+			"project-1",
+			"First",
+			"desc",
+			domain.BacklogItemStatusBlocked,
+			"000000000001",
+		), nil
+	}
+	workspace := newWorkspaceMock()
+	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) (*domain.Workspace, error) {
+		require.Same(t, project, gotProject)
+
+		return nil, errWorkspace
+	}
+	executor := newBacklogActionRunnerMock()
+	service := flow.NewService(projectRepository, backlogItemRepository, workspace, executor)
+
+	item, err := service.FeedbackBacklogItem(t.Context(), "worker", "backlog-1", "feedback message")
+
+	require.ErrorIs(t, err, errWorkspace)
+	require.Nil(t, item)
+	require.Len(t, backlogItemRepository.UpdateBacklogItemCalls(), 1)
+	require.Len(t, workspace.PrepareWorkspaceCalls(), 1)
+	require.Empty(t, executor.FeedbackBacklogItemCalls())
+}
+
+func TestService_FeedbackBacklogItemReturnsErrorWhenExecutorFails(t *testing.T) {
+	t.Parallel()
+
+	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git", nil)
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return project, nil
+	}
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return mustNewBacklogItemWithStatus(
+			t,
+			"backlog-1",
+			"project-1",
+			"First",
+			"desc",
+			domain.BacklogItemStatusBlocked,
+			"000000000001",
+		), nil
+	}
+	workspace := newWorkspaceMock()
+	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) (*domain.Workspace, error) {
+		require.Same(t, project, gotProject)
+
+		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main"), nil
+	}
+	executor := newBacklogActionRunnerMock()
+	executor.FeedbackBacklogItemFunc = func(
+		_ context.Context,
+		_ string,
+		_ *domain.BacklogItem,
+		_ string,
+	) error {
+		return errBacklogFeedbackExecutor
+	}
+	service := flow.NewService(projectRepository, backlogItemRepository, workspace, executor)
+
+	item, err := service.FeedbackBacklogItem(t.Context(), "worker", "backlog-1", "feedback message")
+
+	require.ErrorIs(t, err, errBacklogFeedbackExecutor)
+	require.Nil(t, item)
+	require.Len(t, backlogItemRepository.UpdateBacklogItemCalls(), 1)
+	require.Len(t, workspace.PrepareWorkspaceCalls(), 1)
+	require.Len(t, executor.FeedbackBacklogItemCalls(), 1)
+}
+
+func TestService_FeedbackBacklogItemReturnsErrorWhenFinalBlockUpdateFails(t *testing.T) {
+	t.Parallel()
+
+	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git", nil)
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return project, nil
+	}
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return mustNewBacklogItemWithStatus(
+			t,
+			"backlog-1",
+			"project-1",
+			"First",
+			"desc",
+			domain.BacklogItemStatusBlocked,
+			"000000000001",
+		), nil
+	}
+
+	updateCount := 0
+	backlogItemRepository.UpdateBacklogItemFunc = func(_ context.Context, _ *domain.BacklogItem) error {
+		updateCount++
+		if updateCount == 2 {
+			return errBacklogItemRepository
+		}
+
+		return nil
+	}
+
+	workspace := newWorkspaceMock()
+	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) (*domain.Workspace, error) {
+		require.Same(t, project, gotProject)
+
+		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main"), nil
+	}
+	executor := newBacklogActionRunnerMock()
+	service := flow.NewService(projectRepository, backlogItemRepository, workspace, executor)
+
+	item, err := service.FeedbackBacklogItem(t.Context(), "worker", "backlog-1", "feedback message")
+
+	require.ErrorIs(t, err, errBacklogItemRepository)
+	require.Nil(t, item)
+	require.Len(t, backlogItemRepository.UpdateBacklogItemCalls(), 2)
+	require.Len(t, workspace.PrepareWorkspaceCalls(), 1)
+	require.Len(t, executor.FeedbackBacklogItemCalls(), 1)
+}
+
 func newProjectRepositoryMock() *ProjectRepositoryMock {
 	var mock ProjectRepositoryMock
 
@@ -1129,6 +1365,7 @@ func newWorkspaceMock() *WorkspaceMock {
 }
 
 var errBacklogItemRepository = errors.New("backlog item repository error")
+var errBacklogFeedbackExecutor = errors.New("backlog feedback executor error")
 var errBacklogRefineExecutor = errors.New("backlog refine executor error")
 var errWorkspace = errors.New("workspace error")
 
@@ -1180,6 +1417,14 @@ func mustNewBacklogItemWithStatus(
 func newBacklogActionRunnerMock() *BacklogActionRunnerMock {
 	var mock BacklogActionRunnerMock
 
+	mock.FeedbackBacklogItemFunc = func(
+		_ context.Context,
+		_ string,
+		_ *domain.BacklogItem,
+		_ string,
+	) error {
+		return nil
+	}
 	mock.RecommendWorktreeFunc = func(
 		_ context.Context,
 		_ string,
@@ -1199,6 +1444,131 @@ func newBacklogActionRunnerMock() *BacklogActionRunnerMock {
 	}
 
 	return &mock
+}
+
+func newFeedbackServiceForErrorTest(
+	t *testing.T,
+	item *domain.BacklogItem,
+) (
+	*flow.Service,
+	*BacklogItemRepositoryMock,
+	*WorkspaceMock,
+	*BacklogActionRunnerMock,
+) {
+	t.Helper()
+
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git", nil), nil
+	}
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return item, nil
+	}
+	workspace := newWorkspaceMock()
+	executor := newBacklogActionRunnerMock()
+
+	return flow.NewService(projectRepository, backlogItemRepository, workspace, executor),
+		backlogItemRepository,
+		workspace,
+		executor
+}
+
+func newFeedbackServiceForSuccessTest(
+	t *testing.T,
+) (
+	*flow.Service,
+	*BacklogItemRepositoryMock,
+	*WorkspaceMock,
+	*BacklogActionRunnerMock,
+	*[]*domain.BacklogItem,
+) {
+	t.Helper()
+
+	project := domain.NewProject("project-1", "worker", "https://github.com/neatflowcv/worker.git", nil)
+	projectRepository := newProjectRepositoryMock()
+	projectRepository.GetProjectByNameFunc = func(_ context.Context, _ string) (*domain.Project, error) {
+		return project, nil
+	}
+	backlogItemRepository, updatedItems := newFeedbackBacklogItemRepositoryForSuccessTest(t)
+	workspace := newFeedbackWorkspaceForSuccessTest(t, project)
+	executor := newFeedbackActionRunnerForSuccessTest(t, updatedItems)
+
+	return flow.NewService(projectRepository, backlogItemRepository, workspace, executor),
+		backlogItemRepository,
+		workspace,
+		executor,
+		updatedItems
+}
+
+func newFeedbackBacklogItemRepositoryForSuccessTest(
+	t *testing.T,
+) (*BacklogItemRepositoryMock, *[]*domain.BacklogItem) {
+	t.Helper()
+
+	backlogItem := mustNewBacklogItemWithStatus(
+		t,
+		"backlog-1",
+		"project-1",
+		"First",
+		"desc",
+		domain.BacklogItemStatusBlocked,
+		"000000000001",
+	)
+	backlogItemRepository := newBacklogItemRepositoryMock()
+	backlogItemRepository.GetBacklogItemFunc = func(_ context.Context, _ string) (*domain.BacklogItem, error) {
+		return backlogItem, nil
+	}
+
+	updatedItems := []*domain.BacklogItem{}
+
+	backlogItemRepository.UpdateBacklogItemFunc = func(_ context.Context, item *domain.BacklogItem) error {
+		updatedItems = append(updatedItems, item)
+
+		return nil
+	}
+
+	return backlogItemRepository, &updatedItems
+}
+
+func newFeedbackWorkspaceForSuccessTest(
+	t *testing.T,
+	project *domain.Project,
+) *WorkspaceMock {
+	t.Helper()
+
+	workspace := newWorkspaceMock()
+	workspace.PrepareWorkspaceFunc = func(_ context.Context, gotProject *domain.Project) (*domain.Workspace, error) {
+		require.Same(t, project, gotProject)
+
+		return domain.NewWorkspace("/tmp/project-1", "/tmp/project-1/main"), nil
+	}
+
+	return workspace
+}
+
+func newFeedbackActionRunnerForSuccessTest(
+	t *testing.T,
+	updatedItems *[]*domain.BacklogItem,
+) *BacklogActionRunnerMock {
+	t.Helper()
+
+	executor := newBacklogActionRunnerMock()
+	executor.FeedbackBacklogItemFunc = func(
+		_ context.Context,
+		projectDir string,
+		item *domain.BacklogItem,
+		message string,
+	) error {
+		require.Equal(t, "/tmp/project-1/backlog-1", projectDir)
+		require.Same(t, (*updatedItems)[0], item)
+		require.Equal(t, domain.BacklogItemStatusRunning, item.Status())
+		require.Equal(t, "feedback message", message)
+
+		return nil
+	}
+
+	return executor
 }
 
 func setRecommendWorktreeSuccess(

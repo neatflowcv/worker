@@ -84,6 +84,106 @@ func TestNewBacklogActionRunnerWithRunnerStartBacklogItemReturnsErrorWhenRunnerF
 	require.ErrorIs(t, err, errRunner)
 }
 
+func TestNewBacklogActionRunnerWithRunnerFeedbackBacklogItem(t *testing.T) {
+	t.Parallel()
+
+	projectDir := t.TempDir()
+	item := mustNewBacklogItem(
+		t,
+		"Feedback title",
+		"blocked work details",
+	)
+
+	var (
+		gotDir    string
+		gotPrompt string
+	)
+
+	actionRunner := command.NewBacklogActionRunnerWithRunner(
+		runnerFunc(func(_ context.Context, dir string, args ...string) error {
+			gotDir = dir
+
+			require.Len(t, args, 1)
+			gotPrompt = args[0]
+
+			return nil
+		}),
+	)
+
+	err := actionRunner.FeedbackBacklogItem(
+		t.Context(),
+		projectDir,
+		item,
+		"Please address the failing integration path.",
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, projectDir, gotDir)
+	require.Equal(
+		t,
+		"Please address the failing integration path.",
+		gotPrompt,
+	)
+}
+
+func TestNewBacklogActionRunnerWithRunnerFeedbackBacklogItemIgnoresDescriptionFile(t *testing.T) {
+	t.Parallel()
+
+	projectDir := t.TempDir()
+	item := mustNewBacklogItem(t, "Feedback title", "blocked work details")
+
+	var gotPrompt string
+
+	actionRunner := command.NewBacklogActionRunnerWithRunner(
+		runnerFunc(func(_ context.Context, _ string, args ...string) error {
+			require.Len(t, args, 1)
+			gotPrompt = args[0]
+
+			return nil
+		}),
+	)
+
+	err := actionRunner.FeedbackBacklogItem(
+		t.Context(),
+		projectDir,
+		item,
+		"Resume after review",
+	)
+
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		"Resume after review",
+		gotPrompt,
+	)
+}
+
+func TestNewBacklogActionRunnerWithRunnerFeedbackBacklogItemReturnsErrorWhenRunnerFails(t *testing.T) {
+	t.Parallel()
+
+	projectDir := t.TempDir()
+	item := mustNewBacklogItem(
+		t,
+		"Feedback title",
+		"blocked work details",
+	)
+
+	actionRunner := command.NewBacklogActionRunnerWithRunner(
+		runnerFunc(func(_ context.Context, _ string, _ ...string) error {
+			return errRunner
+		}),
+	)
+
+	err := actionRunner.FeedbackBacklogItem(
+		t.Context(),
+		projectDir,
+		item,
+		"Resume after review",
+	)
+
+	require.ErrorIs(t, err, errRunner)
+}
+
 func TestNewBacklogActionRunnerWithRunnerRefineBacklogItem(t *testing.T) {
 	t.Parallel()
 

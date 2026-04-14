@@ -166,3 +166,33 @@ func TestBacklogItem_Blocked(t *testing.T) {
 		)
 	})
 }
+
+func TestBacklogItem_Resume(t *testing.T) {
+	t.Parallel()
+
+	t.Run("resumes item when status is blocked", func(t *testing.T) {
+		t.Parallel()
+
+		assertTransitionSuccess(
+			t,
+			domain.BacklogItemStatusBlocked,
+			domain.BacklogItemStatusRunning,
+			func(item *domain.BacklogItem) (*domain.BacklogItem, error) {
+				return item.Resume()
+			},
+		)
+	})
+
+	t.Run("returns error when status is not blocked", func(t *testing.T) {
+		t.Parallel()
+
+		assertTransitionFailure(
+			t,
+			domain.BacklogItemStatusOpen,
+			domain.ErrBacklogItemCannotResume,
+			func(item *domain.BacklogItem) (*domain.BacklogItem, error) {
+				return item.Resume()
+			},
+		)
+	})
+}

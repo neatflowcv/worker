@@ -15,6 +15,7 @@ type BacklogItem struct {
 var ErrBacklogItemTitleRequired = errors.New("backlog item title is required")
 var ErrBacklogItemCannotStart = errors.New("cannot start backlog item")
 var ErrBacklogItemCannotBlock = errors.New("cannot block backlog item")
+var ErrBacklogItemCannotResume = errors.New("cannot resume backlog item")
 
 func NewBacklogItem(
 	id, projectID, title, description string,
@@ -100,6 +101,17 @@ func (i *BacklogItem) Blocked() (*BacklogItem, error) {
 
 	item := i.clone()
 	item.status = BacklogItemStatusBlocked
+
+	return item, nil
+}
+
+func (i *BacklogItem) Resume() (*BacklogItem, error) {
+	if i.status != BacklogItemStatusBlocked {
+		return nil, ErrBacklogItemCannotResume
+	}
+
+	item := i.clone()
+	item.status = BacklogItemStatusRunning
 
 	return item, nil
 }

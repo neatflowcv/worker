@@ -15,6 +15,9 @@ import (
 //
 //		// make and configure a mocked runner.BacklogActionRunner
 //		mockedBacklogActionRunner := &BacklogActionRunnerMock{
+//			FeedbackBacklogItemFunc: func(ctx context.Context, projectDir string, item *domain.BacklogItem, message string) error {
+//				panic("mock out the FeedbackBacklogItem method")
+//			},
 //			RecommendWorktreeFunc: func(ctx context.Context, projectDir string, item *domain.BacklogItem) (*domain.Worktree, error) {
 //				panic("mock out the RecommendWorktree method")
 //			},
@@ -31,6 +34,9 @@ import (
 //
 //	}
 type BacklogActionRunnerMock struct {
+	// FeedbackBacklogItemFunc mocks the FeedbackBacklogItem method.
+	FeedbackBacklogItemFunc func(ctx context.Context, projectDir string, item *domain.BacklogItem, message string) error
+
 	// RecommendWorktreeFunc mocks the RecommendWorktree method.
 	RecommendWorktreeFunc func(ctx context.Context, projectDir string, item *domain.BacklogItem) (*domain.Worktree, error)
 
@@ -42,6 +48,17 @@ type BacklogActionRunnerMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// FeedbackBacklogItem holds details about calls to the FeedbackBacklogItem method.
+		FeedbackBacklogItem []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// ProjectDir is the projectDir argument value.
+			ProjectDir string
+			// Item is the item argument value.
+			Item *domain.BacklogItem
+			// Message is the message argument value.
+			Message string
+		}
 		// RecommendWorktree holds details about calls to the RecommendWorktree method.
 		RecommendWorktree []struct {
 			// Ctx is the ctx argument value.
@@ -70,9 +87,59 @@ type BacklogActionRunnerMock struct {
 			Item *domain.BacklogItem
 		}
 	}
+	lockFeedbackBacklogItem sync.RWMutex
 	lockRecommendWorktree sync.RWMutex
 	lockRefineBacklogItem sync.RWMutex
 	lockStartBacklogItem  sync.RWMutex
+}
+
+// FeedbackBacklogItem calls FeedbackBacklogItemFunc.
+func (mock *BacklogActionRunnerMock) FeedbackBacklogItem(
+	ctx context.Context,
+	projectDir string,
+	item *domain.BacklogItem,
+	message string,
+) error {
+	if mock.FeedbackBacklogItemFunc == nil {
+		panic("BacklogActionRunnerMock.FeedbackBacklogItemFunc: method is nil but BacklogActionRunner.FeedbackBacklogItem was just called")
+	}
+	callInfo := struct {
+		Ctx        context.Context
+		ProjectDir string
+		Item       *domain.BacklogItem
+		Message    string
+	}{
+		Ctx:        ctx,
+		ProjectDir: projectDir,
+		Item:       item,
+		Message:    message,
+	}
+	mock.lockFeedbackBacklogItem.Lock()
+	mock.calls.FeedbackBacklogItem = append(mock.calls.FeedbackBacklogItem, callInfo)
+	mock.lockFeedbackBacklogItem.Unlock()
+	return mock.FeedbackBacklogItemFunc(ctx, projectDir, item, message)
+}
+
+// FeedbackBacklogItemCalls gets all the calls that were made to FeedbackBacklogItem.
+// Check the length with:
+//
+//	len(mockedBacklogActionRunner.FeedbackBacklogItemCalls())
+func (mock *BacklogActionRunnerMock) FeedbackBacklogItemCalls() []struct {
+	Ctx        context.Context
+	ProjectDir string
+	Item       *domain.BacklogItem
+	Message    string
+} {
+	var calls []struct {
+		Ctx        context.Context
+		ProjectDir string
+		Item       *domain.BacklogItem
+		Message    string
+	}
+	mock.lockFeedbackBacklogItem.RLock()
+	calls = mock.calls.FeedbackBacklogItem
+	mock.lockFeedbackBacklogItem.RUnlock()
+	return calls
 }
 
 // RecommendWorktree calls RecommendWorktreeFunc.

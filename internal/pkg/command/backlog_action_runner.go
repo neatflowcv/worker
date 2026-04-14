@@ -40,6 +40,20 @@ func NewBacklogActionRunnerWithRunner(runner Runner) *backlogActionRunner {
 	}
 }
 
+func (r *backlogActionRunner) FeedbackBacklogItem(
+	ctx context.Context,
+	projectDir string,
+	_ *domain.BacklogItem,
+	message string,
+) error {
+	err := r.runner.Run(ctx, projectDir, buildBacklogFeedbackPrompt(message))
+	if err != nil {
+		return fmt.Errorf("execute codex feedback: %w", err)
+	}
+
+	return nil
+}
+
 func (r *backlogActionRunner) StartBacklogItem(
 	ctx context.Context,
 	projectDir string,
@@ -168,6 +182,10 @@ func buildBacklogStartPrompt(fileName string, item *domain.BacklogItem) string {
 		"%q 파일에 명시된 작업을 수행해.",
 		fileName,
 	)
+}
+
+func buildBacklogFeedbackPrompt(message string) string {
+	return message
 }
 
 func buildRecommendWorktreePrompt(fileName string) string {
