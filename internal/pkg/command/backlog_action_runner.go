@@ -18,14 +18,12 @@ const backlogFileMode = 0o600
 var recommendWorktreeOutputSchema []byte
 
 var (
-	errRecommendedWorktreeBranchNameEmpty    = errors.New("recommended worktree branch name is empty")
-	errRecommendedWorktreeDirectoryNameEmpty = errors.New("recommended worktree directory name is empty")
+	errRecommendedWorktreeBranchNameEmpty = errors.New("recommended worktree branch name is empty")
 )
 
 //nolint:tagliatelle // Schema field names are fixed by the codex output schema.
 type worktreeRecommendation struct {
-	BranchName    string `json:"branch_name"`
-	DirectoryName string `json:"directory_name"`
+	BranchName string `json:"branch_name"`
 }
 
 type backlogActionRunner struct {
@@ -138,7 +136,7 @@ func (r *backlogActionRunner) RecommendWorktree(
 
 	return domain.NewWorktree(
 		recommendation.BranchName,
-		recommendation.DirectoryName,
+		item.ID(),
 	), nil
 }
 
@@ -174,7 +172,7 @@ func buildBacklogStartPrompt(fileName string, item *domain.BacklogItem) string {
 
 func buildRecommendWorktreePrompt(fileName string) string {
 	return fmt.Sprintf(
-		`Based on the contents of the %q file, suggest a branch name and directory name for a git worktree.`,
+		`Based on the contents of the %q file, suggest a branch name for a git worktree.`,
 		fileName,
 	)
 }
@@ -241,10 +239,6 @@ func readWorktreeRecommendation(outputPath string) (*worktreeRecommendation, err
 
 	if recommendation.BranchName == "" {
 		return nil, errRecommendedWorktreeBranchNameEmpty
-	}
-
-	if recommendation.DirectoryName == "" {
-		return nil, errRecommendedWorktreeDirectoryNameEmpty
 	}
 
 	return &recommendation, nil

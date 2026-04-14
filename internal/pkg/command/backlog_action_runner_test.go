@@ -190,8 +190,7 @@ func TestNewBacklogActionRunnerWithRunnerRecommendWorktree(t *testing.T) {
 			assertRecommendWorktreeArgs(t, args)
 
 			err = os.WriteFile(filepath.Join(dir, "backlog-1.json"), []byte(`{
-				"branch_name":"feat/project-backlog-start",
-				"directory_name":"project-backlog-start"
+				"branch_name":"feat/project-backlog-start"
 			}`), 0o600)
 			require.NoError(t, err)
 
@@ -206,7 +205,7 @@ func TestNewBacklogActionRunnerWithRunnerRecommendWorktree(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, worktree)
 	require.Equal(t, "feat/project-backlog-start", worktree.Branch())
-	require.Equal(t, "project-backlog-start", worktree.Dir())
+	require.Equal(t, "backlog-1", worktree.Dir())
 	require.Equal(t, projectDir, gotDir)
 	require.Len(t, gotArgs, 5)
 
@@ -233,15 +232,14 @@ func assertRecommendWorktreeArgs(t *testing.T, args []string) {
 	require.JSONEq(t, `{
 		"type":"object",
 		"properties":{
-			"branch_name":{"type":"string"},
-			"directory_name":{"type":"string"}
+			"branch_name":{"type":"string"}
 		},
-		"required":["branch_name","directory_name"],
+		"required":["branch_name"],
 		"additionalProperties":false
 	}`, string(schemaContent))
 	require.Equal(
 		t,
-		`Based on the contents of the "backlog-1.md" file, suggest a branch name and directory name for a git worktree.`,
+		`Based on the contents of the "backlog-1.md" file, suggest a branch name for a git worktree.`,
 		args[2],
 	)
 	require.Equal(t, "-o", args[3])
@@ -327,8 +325,7 @@ func TestNewBacklogActionRunnerWithRunnerRecommendWorktreeReturnsErrorWhenOutput
 	actionRunner := command.NewBacklogActionRunnerWithRunner(
 		runnerFunc(func(_ context.Context, dir string, _ ...string) error {
 			err := os.WriteFile(filepath.Join(dir, "backlog-1.json"), []byte(`{
-				"branch_name":"",
-				"directory_name":""
+				"branch_name":""
 			}`), 0o600)
 			require.NoError(t, err)
 
