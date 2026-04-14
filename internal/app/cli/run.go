@@ -9,23 +9,23 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/neatflowcv/worker/internal/app/flow"
-	projectbadger "github.com/neatflowcv/worker/internal/pkg/badger"
 	"github.com/neatflowcv/worker/internal/pkg/command"
 	"github.com/neatflowcv/worker/internal/pkg/local"
+	"github.com/neatflowcv/worker/internal/pkg/postgresql"
 )
 
 func Run() error {
 	database, err := newDatabase()
 	if err != nil {
-		return fmt.Errorf("create badger database: %w", err)
+		return fmt.Errorf("create postgres database: %w", err)
 	}
 
 	defer func() {
 		_ = database.Close()
 	}()
 
-	projectRepository := projectbadger.NewProjectRepository(database)
-	backlogItemRepository := projectbadger.NewBacklogItemRepository(database)
+	projectRepository := postgresql.NewProjectRepository(database)
+	backlogItemRepository := postgresql.NewBacklogItemRepository(database)
 
 	projectWorkspacer, err := newWorkspacer()
 	if err != nil {
@@ -72,20 +72,30 @@ func RunWithArgs(ctx context.Context, args []string, stdout io.Writer, service *
 	return nil
 }
 
-func newDatabase() (*projectbadger.Database, error) {
-	dataHome, err := os.UserHomeDir()
+func newDatabase() (*postgresql.Database, error) {
+	database, err := postgresql.NewDatabase(databaseDSN())
 	if err != nil {
-		return nil, fmt.Errorf("resolve user home directory: %w", err)
+		return nil, fmt.Errorf("open postgres database: %w", err)
 	}
 
-	database, err := projectbadger.NewDatabase(
-		filepath.Join(dataHome, ".local", "share", "worker", "projects.badger"),
-	)
+	err = postgresql.Migrate(database)
 	if err != nil {
-		return nil, fmt.Errorf("open badger database: %w", err)
+		_ = database.Close()
+
+		return nil, fmt.Errorf("migrate postgres database: %w", err)
 	}
 
 	return database, nil
+}
+
+func databaseDSN() string {
+	dsn := os.Getenv("WORKER_POSTGRES_DSN")
+	if dsn != "" {
+		return dsn
+	}
+
+	return "host=localhost user=worker password=password_change_me " +
+		"dbname=worker port=5432 sslmode=disable TimeZone=Asia/Seoul"
 }
 
 func newWorkspacer() (*local.Workspacer, error) {
