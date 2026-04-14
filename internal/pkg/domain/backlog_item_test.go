@@ -7,6 +7,62 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newBacklogItem(t *testing.T, status domain.BacklogItemStatus) *domain.BacklogItem {
+	t.Helper()
+
+	item, err := domain.NewBacklogItem(
+		"backlog-1",
+		"project-1",
+		"First",
+		"desc",
+		status,
+		"000000000001",
+	)
+	require.NoError(t, err)
+
+	return item
+}
+
+func assertTransitionSuccess(
+	t *testing.T,
+	initialStatus domain.BacklogItemStatus,
+	expectedStatus domain.BacklogItemStatus,
+	transition func(*domain.BacklogItem) (*domain.BacklogItem, error),
+) {
+	t.Helper()
+
+	// Arrange
+	item := newBacklogItem(t, initialStatus)
+
+	// Act
+	updatedItem, err := transition(item)
+
+	// Assert
+	require.NoError(t, err)
+	require.Equal(t, expectedStatus, updatedItem.Status())
+	require.Equal(t, initialStatus, item.Status())
+}
+
+func assertTransitionFailure(
+	t *testing.T,
+	initialStatus domain.BacklogItemStatus,
+	expectedErr error,
+	transition func(*domain.BacklogItem) (*domain.BacklogItem, error),
+) {
+	t.Helper()
+
+	// Arrange
+	item := newBacklogItem(t, initialStatus)
+
+	// Act
+	updatedItem, err := transition(item)
+
+	// Assert
+	require.ErrorIs(t, err, expectedErr)
+	require.Nil(t, updatedItem)
+	require.Equal(t, initialStatus, item.Status())
+}
+
 func TestNewBacklogItem(t *testing.T) {
 	t.Parallel()
 
@@ -57,46 +113,56 @@ func TestBacklogItem_Start(t *testing.T) {
 	t.Run("starts item when status is open", func(t *testing.T) {
 		t.Parallel()
 
-		// Arrange
-		item, err := domain.NewBacklogItem(
-			"backlog-1",
-			"project-1",
-			"First",
-			"desc",
+		assertTransitionSuccess(
+			t,
 			domain.BacklogItemStatusOpen,
-			"000000000001",
+			domain.BacklogItemStatusRunning,
+			func(item *domain.BacklogItem) (*domain.BacklogItem, error) {
+				return item.Start()
+			},
 		)
-		require.NoError(t, err)
-
-		// Act
-		startedItem, err := item.Start()
-
-		// Assert
-		require.NoError(t, err)
-		require.Equal(t, domain.BacklogItemStatusRunning, startedItem.Status())
-		require.Equal(t, domain.BacklogItemStatusOpen, item.Status())
 	})
 
 	t.Run("returns error when status is not open", func(t *testing.T) {
 		t.Parallel()
 
-		// Arrange
-		item, err := domain.NewBacklogItem(
-			"backlog-1",
-			"project-1",
-			"First",
-			"desc",
+		assertTransitionFailure(
+			t,
 			domain.BacklogItemStatusBlocked,
-			"000000000001",
+			domain.ErrBacklogItemCannotStart,
+			func(item *domain.BacklogItem) (*domain.BacklogItem, error) {
+				return item.Start()
+			},
 		)
-		require.NoError(t, err)
+	})
+}
 
-		// Act
-		startedItem, err := item.Start()
+func TestBacklogItem_Blocked(t *testing.T) {
+	t.Parallel()
 
-		// Assert
-		require.ErrorIs(t, err, domain.ErrBacklogItemCannotStart)
-		require.Nil(t, startedItem)
-		require.Equal(t, domain.BacklogItemStatusBlocked, item.Status())
+	t.Run("blocks item when status is running", func(t *testing.T) {
+		t.Parallel()
+
+		assertTransitionSuccess(
+			t,
+			domain.BacklogItemStatusRunning,
+			domain.BacklogItemStatusBlocked,
+			func(item *domain.BacklogItem) (*domain.BacklogItem, error) {
+				return item.Blocked()
+			},
+		)
+	})
+
+	t.Run("returns error when status is not running", func(t *testing.T) {
+		t.Parallel()
+
+		assertTransitionFailure(
+			t,
+			domain.BacklogItemStatusOpen,
+			domain.ErrBacklogItemCannotBlock,
+			func(item *domain.BacklogItem) (*domain.BacklogItem, error) {
+				return item.Blocked()
+			},
+		)
 	})
 }
