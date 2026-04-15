@@ -47,8 +47,8 @@ func (s *Service) CreatePlan(request CreatePlanRequest) (*CreatePlanResponse, er
 	}
 
 	decision, err := s.decider.Decide(deciderpkg.DecideRequest{
-		Title:       title,
-		Directories: []string{gitDir},
+		Title:     title,
+		Directory: gitDir,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("decide plan: %w", err)

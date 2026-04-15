@@ -214,7 +214,7 @@ func newDeciderForCreatePlanTest(t *testing.T, localDir string) deciderFunc {
 
 	return deciderFunc(func(request decider.DecideRequest) (*decider.Decision, error) {
 		require.Equal(t, "Feedback Backlog Item 구현", request.Title)
-		require.Equal(t, []string{localDir}, request.Directories)
+		require.Equal(t, localDir, request.Directory)
 
 		return &decider.Decision{
 			Markdown: "# Decision",

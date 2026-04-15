@@ -1,8 +1,8 @@
 package decider
 
 type DecideRequest struct {
-	Title       string
-	Directories []string
+	Title     string
+	Directory string
 }
 
 //nolint:tagliatelle // JSON field names are fixed by the codex output schema.

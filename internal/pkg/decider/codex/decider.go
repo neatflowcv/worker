@@ -17,7 +17,7 @@ var decisionOutputSchema []byte
 
 var (
 	errDecisionMarkdownEmpty     = errors.New("decision markdown is empty")
-	errDecisionDirectoriesEmpty  = errors.New("decision directories are required")
+	errDecisionDirectoryEmpty    = errors.New("decision directory is required")
 	errDecisionItemQuestionEmpty = errors.New("decision item question is empty")
 )
 
@@ -41,19 +41,17 @@ func NewDecider() (*Decider, error) {
 }
 
 func (d *Decider) Decide(request deciderpkg.DecideRequest) (*deciderpkg.Decision, error) {
-	directories, err := directories(request.Directories)
-	if err != nil {
-		return nil, err
+	directory := strings.TrimSpace(request.Directory)
+	if directory == "" {
+		return nil, errDecisionDirectoryEmpty
 	}
-
-	workDir := directories[0]
 
 	output, err := d.runner.Run(
 		context.Background(),
-		workDir,
+		directory,
 		"--output-schema",
 		d.schemaPath,
-		buildPrompt(request.Title, directories),
+		buildPrompt(request.Title),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("execute codex decider: %w", err)
@@ -67,29 +65,9 @@ func (d *Decider) Decide(request deciderpkg.DecideRequest) (*deciderpkg.Decision
 	return decision, nil
 }
 
-func directories(raw []string) ([]string, error) {
-	directories := make([]string, 0, len(raw))
-
-	for _, dir := range raw {
-		dir = strings.TrimSpace(dir)
-		if dir == "" {
-			continue
-		}
-
-		directories = append(directories, dir)
-	}
-
-	if len(directories) == 0 {
-		return nil, errDecisionDirectoriesEmpty
-	}
-
-	return directories, nil
-}
-
-func buildPrompt(title string, directories []string) string {
+func buildPrompt(title string) string {
 	return fmt.Sprintf(
 		"%q 작업에 대한 계획을 세워. "+
-			"다음 디렉토리들을 검토해서 현재 코드 구조와 제약을 반영한 실행 가능한 계획을 작성해: %s. "+
 			"출력은 반드시 제공된 output schema를 따르는 JSON 객체 하나만 반환해. "+
 			"JSON 바깥의 설명, 코드 블록, 마크다운 fence는 절대 출력하지 마. "+
 			"`markdown` 필드에는 한국어 마크다운 계획 문서를 넣어. "+
@@ -99,18 +77,7 @@ func buildPrompt(title string, directories []string) string {
 			"`question`은 바로 답할 수 있게 구체적으로 쓰고 `expected_answers`는 짧은 선택지 후보 배열로 작성해. "+
 			"추가로 결정할 사항이 없으면 `items`는 빈 배열로 반환해.",
 		strings.TrimSpace(title),
-		quotedDirectories(directories),
 	)
-}
-
-func quotedDirectories(directories []string) string {
-	quoted := make([]string, 0, len(directories))
-
-	for _, dir := range directories {
-		quoted = append(quoted, fmt.Sprintf("%q", dir))
-	}
-
-	return strings.Join(quoted, ", ")
 }
 
 func writeSchemaFile() (string, error) {
