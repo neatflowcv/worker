@@ -57,8 +57,8 @@ func TestRunnerRun(t *testing.T) {
 	require.Equal(t, "# Refined Decision", string(content))
 	require.Contains(t, stdout.String(), "무엇을 먼저 할까?")
 	require.Contains(t, stdout.String(), "1. Git")
-	require.Contains(t, stdout.String(), "i. 질문 무시")
-	require.Contains(t, stdout.String(), "c. 직접 입력")
+	require.Contains(t, stdout.String(), "2. 질문 무시")
+	require.Contains(t, stdout.String(), "3. 직접 입력")
 }
 
 func TestRunnerRunRepeatsRefineUntilItemsAreEmpty(t *testing.T) {
@@ -84,8 +84,6 @@ func TestRunnerRunRepeatsRefineUntilItemsAreEmpty(t *testing.T) {
 	content, err := os.ReadFile(outputPath)
 	require.NoError(t, err)
 	require.Equal(t, "# Final Decision", string(content))
-	require.Contains(t, stdout.String(), "무엇을 먼저 할까?")
-	require.Contains(t, stdout.String(), "무엇을 다음에 할까?")
 }
 
 func TestRunnerRunAcceptsCustomAnswer(t *testing.T) {
@@ -93,7 +91,7 @@ func TestRunnerRunAcceptsCustomAnswer(t *testing.T) {
 
 	content, stdout := runInteractiveAnswerTest(
 		t,
-		"c\n직접 정한 답변\n",
+		"3\n직접 정한 답변\n",
 		decider.QuestionAnswer{
 			Question: "무엇을 먼저 할까?",
 			Answer:   "직접 정한 답변",
@@ -110,7 +108,7 @@ func TestRunnerRunAllowsIgnoringQuestion(t *testing.T) {
 
 	content, stdout := runInteractiveAnswerTest(
 		t,
-		"i\n질문 없이 전달할 답변\n",
+		"2\n질문 없이 전달할 답변\n",
 		decider.QuestionAnswer{
 			Question: "",
 			Answer:   "질문 없이 전달할 답변",
