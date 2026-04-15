@@ -62,6 +62,46 @@ func (s *Service) CreatePlan(request CreatePlanRequest) (*CreatePlanResponse, er
 	}, nil
 }
 
+func (s *Service) RefinePlan(request RefinePlanRequest) (*RefinePlanResponse, error) {
+	err := request.validate()
+	if err != nil {
+		return nil, err
+	}
+
+	gitDir, err := fetchGitSource(normalizeRootDir(request.RootDir), request.Git)
+	if err != nil {
+		return nil, err
+	}
+
+	decision, err := s.decider.RefinePlan(deciderpkg.RefinePlanRequest{
+		Directory: gitDir,
+		Markdown:  strings.TrimSpace(request.Markdown),
+		Answers:   toDeciderAnswers(request.Answers),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("refine plan: %w", err)
+	}
+
+	return &RefinePlanResponse{
+		Title:    "",
+		Git:      gitDir,
+		Items:    decision.Items,
+		Markdown: decision.Markdown,
+	}, nil
+}
+
+func toDeciderAnswers(answers []QuestionAnswer) []deciderpkg.QuestionAnswer {
+	converted := make([]deciderpkg.QuestionAnswer, 0, len(answers))
+	for _, answer := range answers {
+		converted = append(converted, deciderpkg.QuestionAnswer{
+			Question: strings.TrimSpace(answer.Question),
+			Answer:   strings.TrimSpace(answer.Answer),
+		})
+	}
+
+	return converted
+}
+
 func fetchGitSource(rootDir, reference string) (string, error) {
 	reference = strings.TrimSpace(reference)
 	localDir := filepath.Join(rootDir, repositoryDirName(reference))

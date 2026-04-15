@@ -5,6 +5,17 @@ type DecideRequest struct {
 	Directory string
 }
 
+type RefinePlanRequest struct {
+	Directory string
+	Markdown  string
+	Answers   []QuestionAnswer
+}
+
+type QuestionAnswer struct {
+	Question string
+	Answer   string
+}
+
 //nolint:tagliatelle // JSON field names are fixed by the codex output schema.
 type Item struct {
 	Question        string   `json:"question"`
@@ -18,4 +29,5 @@ type Decision struct {
 
 type Decider interface {
 	Decide(request DecideRequest) (*Decision, error)
+	RefinePlan(request RefinePlanRequest) (*Decision, error)
 }

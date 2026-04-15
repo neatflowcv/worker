@@ -62,12 +62,19 @@ func TestServiceCreatePlanPullsExistingGitSource(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
-	service := planner.NewService(deciderFunc(func(_ decider.DecideRequest) (*decider.Decision, error) {
-		return &decider.Decision{
-			Markdown: "# Decision",
-			Items:    nil,
-		}, nil
-	}))
+	service := planner.NewService(deciderStub{
+		decideFunc: func(_ decider.DecideRequest) (*decider.Decision, error) {
+			return &decider.Decision{
+				Markdown: "# Decision",
+				Items:    nil,
+			}, nil
+		},
+		refinePlanFunc: func(_ decider.RefinePlanRequest) (*decider.Decision, error) {
+			t.Fatal("refine plan should not be called")
+
+			return nil, errUnexpectedDeciderCall
+		},
+	})
 	rootDir := t.TempDir()
 	repositoryURL := createGitRepository(t, "README.md", "first\n")
 	request := planner.CreatePlanRequest{
@@ -149,6 +156,106 @@ func TestServiceCreatePlanReturnsErrorWhenRootDirIsEmpty(t *testing.T) {
 	require.Nil(t, plan)
 }
 
+func TestServiceRefinePlanReturnsNotImplemented(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	rootDir := t.TempDir()
+	repositoryURL := createGitRepository(t, "plan.md", "# worker\n")
+	localDir := filepath.Join(rootDir, filepath.Base(repositoryURL))
+	service := planner.NewService(deciderStub{
+		decideFunc: func(_ decider.DecideRequest) (*decider.Decision, error) {
+			t.Fatal("decide should not be called")
+
+			return nil, errUnexpectedDeciderCall
+		},
+		refinePlanFunc: func(request decider.RefinePlanRequest) (*decider.Decision, error) {
+			require.Equal(t, localDir, request.Directory)
+			require.Equal(t, "# 기존 계획", request.Markdown)
+			require.Equal(
+				t,
+				[]decider.QuestionAnswer{
+					{
+						Question: "결정 사항은 무엇이었나?",
+						Answer:   "결정 사항을 더 구체적으로 정리해.",
+					},
+				},
+				request.Answers,
+			)
+
+			return nil, errUnexpectedDeciderCall
+		},
+	})
+	request := planner.RefinePlanRequest{
+		RootDir:  rootDir,
+		Git:      repositoryURL,
+		Markdown: "# 기존 계획",
+		Answers: []planner.QuestionAnswer{
+			{
+				Question: "결정 사항은 무엇이었나?",
+				Answer:   "결정 사항을 더 구체적으로 정리해.",
+			},
+		},
+	}
+
+	// Act
+	plan, err := service.RefinePlan(request)
+
+	// Assert
+	require.ErrorIs(t, err, errUnexpectedDeciderCall)
+	require.Nil(t, plan)
+}
+
+func TestServiceRefinePlanReturnsErrorWhenMarkdownIsEmpty(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	service := planner.NewService(unusedDecider(t))
+	request := planner.RefinePlanRequest{
+		RootDir:  t.TempDir(),
+		Git:      createGitRepository(t, "plan.md", "# worker\n"),
+		Markdown: " ",
+		Answers: []planner.QuestionAnswer{
+			{
+				Question: "결정 사항은 무엇이었나?",
+				Answer:   "결정 사항을 더 구체적으로 정리해.",
+			},
+		},
+	}
+
+	// Act
+	plan, err := service.RefinePlan(request)
+
+	// Assert
+	require.ErrorIs(t, err, planner.ErrPlanMarkdownRequired)
+	require.Nil(t, plan)
+}
+
+func TestServiceRefinePlanReturnsErrorWhenAnswerIsEmpty(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	service := planner.NewService(unusedDecider(t))
+	request := planner.RefinePlanRequest{
+		RootDir:  t.TempDir(),
+		Git:      createGitRepository(t, "plan.md", "# worker\n"),
+		Markdown: "# 기존 계획",
+		Answers: []planner.QuestionAnswer{
+			{
+				Question: "결정 사항은 무엇이었나?",
+				Answer:   " ",
+			},
+		},
+	}
+
+	// Act
+	plan, err := service.RefinePlan(request)
+
+	// Assert
+	require.ErrorIs(t, err, planner.ErrPlanAnswerRequired)
+	require.Nil(t, plan)
+}
+
 func createGitRepository(t *testing.T, name, content string) string {
 	t.Helper()
 
@@ -203,37 +310,58 @@ func writeFileAndCommit(
 	require.NoError(t, err)
 }
 
-type deciderFunc func(request decider.DecideRequest) (*decider.Decision, error)
-
-func (f deciderFunc) Decide(request decider.DecideRequest) (*decider.Decision, error) {
-	return f(request)
+type deciderStub struct {
+	decideFunc     func(request decider.DecideRequest) (*decider.Decision, error)
+	refinePlanFunc func(request decider.RefinePlanRequest) (*decider.Decision, error)
 }
 
-func newDeciderForCreatePlanTest(t *testing.T, localDir string) deciderFunc {
+func (s deciderStub) Decide(request decider.DecideRequest) (*decider.Decision, error) {
+	return s.decideFunc(request)
+}
+
+func (s deciderStub) RefinePlan(request decider.RefinePlanRequest) (*decider.Decision, error) {
+	return s.refinePlanFunc(request)
+}
+
+func newDeciderForCreatePlanTest(t *testing.T, localDir string) deciderStub {
 	t.Helper()
 
-	return deciderFunc(func(request decider.DecideRequest) (*decider.Decision, error) {
-		require.Equal(t, "Feedback Backlog Item 구현", request.Title)
-		require.Equal(t, localDir, request.Directory)
+	return deciderStub{
+		decideFunc: func(request decider.DecideRequest) (*decider.Decision, error) {
+			require.Equal(t, "Feedback Backlog Item 구현", request.Title)
+			require.Equal(t, localDir, request.Directory)
 
-		return &decider.Decision{
-			Markdown: "# Decision",
-			Items: []decider.Item{
-				{
-					Question:        "무엇을 먼저 할까?",
-					ExpectedAnswers: []string{"Git"},
+			return &decider.Decision{
+				Markdown: "# Decision",
+				Items: []decider.Item{
+					{
+						Question:        "무엇을 먼저 할까?",
+						ExpectedAnswers: []string{"Git"},
+					},
 				},
-			},
-		}, nil
-	})
+			}, nil
+		},
+		refinePlanFunc: func(_ decider.RefinePlanRequest) (*decider.Decision, error) {
+			t.Fatal("refine plan should not be called")
+
+			return nil, errUnexpectedDeciderCall
+		},
+	}
 }
 
-func unusedDecider(t *testing.T) deciderFunc {
+func unusedDecider(t *testing.T) deciderStub {
 	t.Helper()
 
-	return deciderFunc(func(_ decider.DecideRequest) (*decider.Decision, error) {
-		t.Fatal("decider should not be called")
+	return deciderStub{
+		decideFunc: func(_ decider.DecideRequest) (*decider.Decision, error) {
+			t.Fatal("decide should not be called")
 
-		return nil, errUnexpectedDeciderCall
-	})
+			return nil, errUnexpectedDeciderCall
+		},
+		refinePlanFunc: func(_ decider.RefinePlanRequest) (*decider.Decision, error) {
+			t.Fatal("refine plan should not be called")
+
+			return nil, errUnexpectedDeciderCall
+		},
+	}
 }
