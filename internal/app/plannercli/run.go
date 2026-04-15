@@ -71,6 +71,7 @@ type model struct {
 
 	phase       phase
 	response    *planner.CreatePlanResponse
+	answers     []planner.QuestionAnswer
 	selected    int
 	customInput string
 	err         error
@@ -214,6 +215,7 @@ func newModel(
 		title:       title,
 		phase:       phaseLoading,
 		response:    nil,
+		answers:     nil,
 		selected:    0,
 		customInput: "",
 		err:         nil,
@@ -235,6 +237,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.response = msg.response
+		m.answers = nil
 		m.selected = 0
 		m.customInput = ""
 
@@ -257,6 +260,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.response = msg.response
+		m.answers = nil
 		m.selected = 0
 		m.customInput = ""
 
@@ -334,7 +338,11 @@ func (m model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "enter":
 		selection := options[m.selected]
-		if selection == ignoreQuestionChoice || selection == customAnswerChoice {
+		if selection == ignoreQuestionChoice {
+			return m.advanceQuestion()
+		}
+
+		if selection == customAnswerChoice {
 			m.phase = phaseInput
 			m.customInput = ""
 
@@ -349,9 +357,7 @@ func (m model) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
-		m.phase = phaseLoading
-
-		return m, m.refinePlanCmd(answer)
+		return m.applyAnswer(answer)
 	}
 
 	return m, nil
@@ -371,9 +377,7 @@ func (m model) updateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		m.phase = phaseLoading
-
-		return m, m.refinePlanCmd(answer)
+		return m.applyAnswer(answer)
 
 	case "backspace":
 		m.customInput = trimLastRune(m.customInput)
@@ -445,6 +449,44 @@ func (m model) inputView() string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
+func (m model) advanceQuestion() (tea.Model, tea.Cmd) {
+	if m.response == nil || len(m.response.Items) == 0 {
+		return m, nil
+	}
+
+	remainingItems := append([]decider.Item(nil), m.response.Items[1:]...)
+	m.response = &planner.CreatePlanResponse{
+		Title:    m.response.Title,
+		Git:      m.response.Git,
+		Items:    remainingItems,
+		Markdown: m.response.Markdown,
+	}
+	m.selected = 0
+	m.customInput = ""
+
+	if len(remainingItems) == 0 {
+		if len(m.answers) == 0 {
+			m.phase = phaseDone
+
+			return m, tea.Quit
+		}
+
+		m.phase = phaseLoading
+
+		return m, m.refinePlanCmd(m.answers)
+	}
+
+	m.phase = phaseSelect
+
+	return m, nil
+}
+
+func (m model) applyAnswer(answer planner.QuestionAnswer) (tea.Model, tea.Cmd) {
+	m.answers = append(m.answers, answer)
+
+	return m.advanceQuestion()
+}
+
 func (m model) currentItem() *decider.Item {
 	if m.response == nil || len(m.response.Items) == 0 {
 		return nil
@@ -497,13 +539,15 @@ func (m model) createPlanCmd() tea.Cmd {
 	}
 }
 
-func (m model) refinePlanCmd(answer planner.QuestionAnswer) tea.Cmd {
+func (m model) refinePlanCmd(answers []planner.QuestionAnswer) tea.Cmd {
+	collectedAnswers := append([]planner.QuestionAnswer(nil), answers...)
+
 	return func() tea.Msg {
 		refinedResponse, err := m.service.RefinePlan(planner.RefinePlanRequest{
 			RootDir:  m.rootDir,
 			Git:      m.git,
 			Markdown: m.response.Markdown,
-			Answers:  []planner.QuestionAnswer{answer},
+			Answers:  collectedAnswers,
 		})
 		if err != nil {
 			return planRefinedMsg{
@@ -584,16 +628,25 @@ func (a *app) refinePlan(
 	stdout io.Writer,
 	response *planner.CreatePlanResponse,
 ) (*planner.CreatePlanResponse, error) {
-	answer, err := askQuestion(reader, stdout, response.Items[0])
+	answers, err := askQuestions(reader, stdout, response.Items)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(answers) == 0 {
+		return &planner.CreatePlanResponse{
+			Title:    response.Title,
+			Git:      response.Git,
+			Items:    nil,
+			Markdown: response.Markdown,
+		}, nil
 	}
 
 	refinedResponse, err := a.runner.service.RefinePlan(planner.RefinePlanRequest{
 		RootDir:  a.runner.rootDir,
 		Git:      a.Git,
 		Markdown: response.Markdown,
-		Answers:  []planner.QuestionAnswer{answer},
+		Answers:  answers,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("refine plan: %w", err)
@@ -607,23 +660,46 @@ func (a *app) refinePlan(
 	}, nil
 }
 
+func askQuestions(
+	reader *bufio.Reader,
+	stdout io.Writer,
+	items []decider.Item,
+) ([]planner.QuestionAnswer, error) {
+	answers := make([]planner.QuestionAnswer, 0, len(items))
+
+	for _, item := range items {
+		answer, ignored, err := askQuestion(reader, stdout, item)
+		if err != nil {
+			return nil, err
+		}
+
+		if ignored {
+			continue
+		}
+
+		answers = append(answers, answer)
+	}
+
+	return answers, nil
+}
+
 func askQuestion(
 	reader *bufio.Reader,
 	stdout io.Writer,
 	item decider.Item,
-) (planner.QuestionAnswer, error) {
+) (planner.QuestionAnswer, bool, error) {
 	if len(item.ExpectedAnswers) == 0 {
-		return planner.QuestionAnswer{}, errExpectedAnswersRequired
+		return planner.QuestionAnswer{}, false, errExpectedAnswersRequired
 	}
 
 	err := writeQuestion(stdout, item)
 	if err != nil {
-		return planner.QuestionAnswer{}, err
+		return planner.QuestionAnswer{}, false, err
 	}
 
 	selection, err := readSelection(reader, stdout, len(item.ExpectedAnswers))
 	if err != nil {
-		return planner.QuestionAnswer{}, err
+		return planner.QuestionAnswer{}, false, err
 	}
 
 	return buildQuestionAnswer(reader, stdout, item, selection)
@@ -660,40 +736,35 @@ func buildQuestionAnswer(
 	stdout io.Writer,
 	item decider.Item,
 	selection string,
-) (planner.QuestionAnswer, error) {
+) (planner.QuestionAnswer, bool, error) {
 	selectedIndex, err := strconv.Atoi(selection)
 	if err != nil {
-		return planner.QuestionAnswer{}, fmt.Errorf("parse selected index: %w", err)
+		return planner.QuestionAnswer{}, false, fmt.Errorf("parse selected index: %w", err)
 	}
 
 	if selectedIndex == len(item.ExpectedAnswers)+1 {
-		answer, readErr := readCustomAnswer(reader, stdout)
-		if readErr != nil {
-			return planner.QuestionAnswer{}, readErr
-		}
-
 		return planner.QuestionAnswer{
 			Question: "",
-			Answer:   answer,
-		}, nil
+			Answer:   "",
+		}, true, nil
 	}
 
 	if selectedIndex == len(item.ExpectedAnswers)+2 {
 		answer, readErr := readCustomAnswer(reader, stdout)
 		if readErr != nil {
-			return planner.QuestionAnswer{}, readErr
+			return planner.QuestionAnswer{}, false, readErr
 		}
 
 		return planner.QuestionAnswer{
 			Question: strings.TrimSpace(item.Question),
 			Answer:   answer,
-		}, nil
+		}, false, nil
 	}
 
 	return planner.QuestionAnswer{
 		Question: strings.TrimSpace(item.Question),
 		Answer:   strings.TrimSpace(item.ExpectedAnswers[selectedIndex-1]),
-	}, nil
+	}, false, nil
 }
 
 func readSelection(
