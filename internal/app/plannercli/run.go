@@ -19,9 +19,8 @@ type Runner struct {
 
 type app struct {
 	runner *Runner
-	Title  string   `help:"Plan title."                       name:"title" required:""`
-	Git    []string `help:"Git source reference. Repeatable." name:"git"`
-	URL    []string `help:"URL source reference. Repeatable." name:"url"`
+	Git    string `arg:"" help:"Git source reference." name:"git"`
+	Title  string `arg:"" help:"Plan title."           name:"title"`
 }
 
 func Run() error {
@@ -49,9 +48,8 @@ func (r *Runner) Run(args []string, stdout io.Writer) error {
 	parser, err := kong.New(
 		&app{
 			runner: r,
+			Git:    "",
 			Title:  "",
-			Git:    nil,
-			URL:    nil,
 		},
 		kong.Name("planner"),
 		kong.BindTo(stdout, (*io.Writer)(nil)),
@@ -77,9 +75,13 @@ func (a *app) Run(stdout io.Writer) error {
 	request := planner.CreatePlanRequest{
 		RootDir: a.runner.rootDir,
 		Title:   a.Title,
-		Sources: appendGitSources(a.Git, nil),
+		Sources: []planner.Source{
+			{
+				Kind:      planner.SourceKindGit,
+				Reference: a.Git,
+			},
+		},
 	}
-	request.Sources = appendURLSources(a.URL, request.Sources)
 
 	response, err := a.runner.service.CreatePlan(request)
 	if err != nil {
@@ -132,26 +134,4 @@ func newRootDir() (string, error) {
 	}
 
 	return filepath.Join(dataHome, ".local", "share", "worker", "plans"), nil
-}
-
-func appendGitSources(references []string, sources []planner.Source) []planner.Source {
-	for _, reference := range references {
-		sources = append(sources, planner.Source{
-			Kind:      planner.SourceKindGit,
-			Reference: reference,
-		})
-	}
-
-	return sources
-}
-
-func appendURLSources(references []string, sources []planner.Source) []planner.Source {
-	for _, reference := range references {
-		sources = append(sources, planner.Source{
-			Kind:      planner.SourceKindURL,
-			Reference: reference,
-		})
-	}
-
-	return sources
 }

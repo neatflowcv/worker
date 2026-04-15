@@ -30,14 +30,14 @@ func TestRunnerRun(t *testing.T) {
 	runner := plannercli.NewRunner(
 		planner.NewService(deciderFunc(func(request decider.DecideRequest) (*decider.Decision, error) {
 			require.Equal(t, "Feedback Backlog Item 구현", request.Title)
-			require.Equal(t, []string{localDir, "docs/go-guide.md"}, request.Directories)
+			require.Equal(t, []string{localDir}, request.Directories)
 
 			return &decider.Decision{
 				Markdown: "# Decision",
 				Items: []decider.Item{
 					{
 						Question:        "무엇을 먼저 할까?",
-						ExpectedAnswers: []string{"Git", "URL"},
+						ExpectedAnswers: []string{"Git"},
 					},
 				},
 			}, nil
@@ -48,9 +48,8 @@ func TestRunnerRun(t *testing.T) {
 	// Act
 	err := runner.Run(
 		[]string{
-			"--title", "Feedback Backlog Item 구현",
-			"--git", repositoryURL,
-			"--url", "docs/go-guide.md",
+			repositoryURL,
+			"Feedback Backlog Item 구현",
 		},
 		&stdout,
 	)
@@ -59,12 +58,12 @@ func TestRunnerRun(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(
 		t,
-		"# Decision\n\n## 결정사항\n\n1. 무엇을 먼저 할까?\n   예상 답안:\n   1. Git\n   2. URL\n",
+		"# Decision\n\n## 결정사항\n\n1. 무엇을 먼저 할까?\n   예상 답안:\n   1. Git\n",
 		stdout.String(),
 	)
 }
 
-func TestRunnerRunReturnsErrorWhenSourcesAreMissing(t *testing.T) {
+func TestRunnerRunReturnsErrorWhenTitleIsMissing(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
@@ -78,13 +77,13 @@ func TestRunnerRunReturnsErrorWhenSourcesAreMissing(t *testing.T) {
 	// Act
 	err := runner.Run(
 		[]string{
-			"--title", "Feedback Backlog Item 구현",
+			"Feedback Backlog Item 구현",
 		},
 		&stdout,
 	)
 
 	// Assert
-	require.ErrorIs(t, err, planner.ErrPlanSourcesRequired)
+	require.ErrorContains(t, err, "expected \"<title>\"")
 	require.Empty(t, stdout.String())
 }
 
