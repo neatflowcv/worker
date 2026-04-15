@@ -24,6 +24,9 @@ func TestRunnerRun(t *testing.T) {
 	// Arrange
 	var stdout bytes.Buffer
 
+	workingDir := t.TempDir()
+	outputPath := filepath.Join(workingDir, "custom-plan.md")
+
 	rootDir := filepath.Join(t.TempDir(), "plans")
 	repositoryURL := createGitRepository(t, "plan", "# worker\n")
 	localDir := filepath.Join(rootDir, filepath.Base(repositoryURL))
@@ -48,6 +51,8 @@ func TestRunnerRun(t *testing.T) {
 	// Act
 	err := runner.Run(
 		[]string{
+			"--output",
+			outputPath,
 			repositoryURL,
 			"Feedback Backlog Item 구현",
 		},
@@ -56,11 +61,11 @@ func TestRunnerRun(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	require.Equal(
-		t,
-		"# Decision\n\n## 결정사항\n\n1. 무엇을 먼저 할까?\n   예상 답안:\n   1. Git\n",
-		stdout.String(),
-	)
+	//nolint:gosec // Test controls the temporary output path.
+	content, err := os.ReadFile(outputPath)
+	require.NoError(t, err)
+	require.Equal(t, "# Decision", string(content))
+	require.Empty(t, stdout.String())
 }
 
 func TestRunnerRunReturnsErrorWhenTitleIsMissing(t *testing.T) {
@@ -84,6 +89,78 @@ func TestRunnerRunReturnsErrorWhenTitleIsMissing(t *testing.T) {
 
 	// Assert
 	require.ErrorContains(t, err, "expected \"<title>\"")
+	require.Empty(t, stdout.String())
+}
+
+//nolint:paralleltest // Changes working directory to verify default relative output path.
+func TestRunnerRunWritesPlanToDefaultOutputFile(t *testing.T) {
+	// Arrange
+	var stdout bytes.Buffer
+
+	workingDir := t.TempDir()
+	t.Chdir(workingDir)
+
+	rootDir := filepath.Join(t.TempDir(), "plans")
+	repositoryURL := createGitRepository(t, "plan", "# worker\n")
+	runner := plannercli.NewRunner(
+		planner.NewService(deciderFunc(func(request decider.DecideRequest) (*decider.Decision, error) {
+			return &decider.Decision{
+				Markdown: "# Default",
+				Items:    nil,
+			}, nil
+		})),
+		rootDir,
+	)
+
+	// Act
+	err := runner.Run(
+		[]string{
+			repositoryURL,
+			"Feedback Backlog Item 구현",
+		},
+		&stdout,
+	)
+
+	// Assert
+	require.NoError(t, err)
+	//nolint:gosec // Test controls the temporary output path.
+	content, err := os.ReadFile(filepath.Join(workingDir, "plan.md"))
+	require.NoError(t, err)
+	require.Equal(t, "# Default", string(content))
+	require.Empty(t, stdout.String())
+}
+
+func TestRunnerRunReturnsErrorWhenOutputFileAlreadyExists(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	var stdout bytes.Buffer
+
+	outputPath := filepath.Join(t.TempDir(), "plan.md")
+	err := os.WriteFile(outputPath, []byte("# existing"), 0o600)
+	require.NoError(t, err)
+
+	rootDir := filepath.Join(t.TempDir(), "plans")
+	repositoryURL := createGitRepository(t, "plan", "# worker\n")
+	runner := plannercli.NewRunner(
+		planner.NewService(unusedDecider(t)),
+		rootDir,
+	)
+
+	// Act
+	err = runner.Run(
+		[]string{
+			"--output",
+			outputPath,
+			repositoryURL,
+			"Feedback Backlog Item 구현",
+		},
+		&stdout,
+	)
+
+	// Assert
+	require.ErrorContains(t, err, "output file already exists")
+	require.ErrorIs(t, err, os.ErrExist)
 	require.Empty(t, stdout.String())
 }
 

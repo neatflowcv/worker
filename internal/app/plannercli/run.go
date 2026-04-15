@@ -5,12 +5,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/alecthomas/kong"
 	"github.com/neatflowcv/worker/internal/app/planner"
-	"github.com/neatflowcv/worker/internal/pkg/decider"
 )
+
+const outputFileMode = 0o600
 
 type Runner struct {
 	rootDir string
@@ -19,8 +19,9 @@ type Runner struct {
 
 type app struct {
 	runner *Runner
-	Git    string `arg:"" help:"Git source reference." name:"git"`
-	Title  string `arg:"" help:"Plan title."           name:"title"`
+	Output string `default:"plan.md" help:"Output file path."     name:"output"`
+	Git    string `arg:""            help:"Git source reference." name:"git"`
+	Title  string `arg:""            help:"Plan title."           name:"title"`
 }
 
 func Run() error {
@@ -48,6 +49,7 @@ func (r *Runner) Run(args []string, stdout io.Writer) error {
 	parser, err := kong.New(
 		&app{
 			runner: r,
+			Output: "plan.md",
 			Git:    "",
 			Title:  "",
 		},
@@ -71,7 +73,18 @@ func (r *Runner) Run(args []string, stdout io.Writer) error {
 	return nil
 }
 
-func (a *app) Run(stdout io.Writer) error {
+func (a *app) Run(stdout io.Writer) (err error) {
+	_ = stdout
+
+	_, err = os.Stat(a.Output)
+	if err == nil {
+		return fmt.Errorf("output file already exists: %w", os.ErrExist)
+	}
+
+	if !os.IsNotExist(err) {
+		return fmt.Errorf("stat output file: %w", err)
+	}
+
 	request := planner.CreatePlanRequest{
 		RootDir: a.runner.rootDir,
 		Git:     a.Git,
@@ -83,43 +96,24 @@ func (a *app) Run(stdout io.Writer) error {
 		return fmt.Errorf("create plan: %w", err)
 	}
 
-	_, err = fmt.Fprint(stdout, response.Markdown)
+	file, err := os.OpenFile(a.Output, os.O_WRONLY|os.O_CREATE|os.O_EXCL, outputFileMode)
+	if err != nil {
+		return fmt.Errorf("open output file: %w", err)
+	}
+
+	defer func() {
+		closeErr := file.Close()
+		if closeErr != nil {
+			err = fmt.Errorf("close output file: %w", closeErr)
+		}
+	}()
+
+	_, err = file.WriteString(response.Markdown)
 	if err != nil {
 		return fmt.Errorf("write markdown: %w", err)
 	}
 
-	_, err = fmt.Fprint(stdout, formatItems(response.Items))
-	if err != nil {
-		return fmt.Errorf("write items: %w", err)
-	}
-
 	return nil
-}
-
-func formatItems(items []decider.Item) string {
-	if len(items) == 0 {
-		return ""
-	}
-
-	var builder strings.Builder
-
-	builder.WriteString("\n\n## 결정사항\n")
-
-	for idx, item := range items {
-		fmt.Fprintf(&builder, "\n%d. %s\n", idx+1, item.Question)
-
-		if len(item.ExpectedAnswers) == 0 {
-			continue
-		}
-
-		builder.WriteString("   예상 답안:\n")
-
-		for answerIdx, answer := range item.ExpectedAnswers {
-			fmt.Fprintf(&builder, "   %d. %s\n", answerIdx+1, answer)
-		}
-	}
-
-	return builder.String()
 }
 
 func newRootDir() (string, error) {
