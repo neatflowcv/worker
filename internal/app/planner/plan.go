@@ -12,26 +12,12 @@ const sourceDirMode = 0o750
 
 var ErrPlanTitleRequired = errors.New("plan title is required")
 var ErrPlanRootDirRequired = errors.New("plan root directory is required")
-var ErrPlanSourcesRequired = errors.New("plan sources are required")
-var ErrPlanSourceReferenceRequired = errors.New("plan source reference is required")
-var ErrInvalidSourceKind = errors.New("invalid source kind")
-
-type SourceKind string
-
-const (
-	SourceKindGit SourceKind = "Git"
-	SourceKindURL SourceKind = "URL"
-)
-
-type Source struct {
-	Kind      SourceKind
-	Reference string
-}
+var ErrPlanGitRequired = errors.New("plan git is required")
 
 type CreatePlanRequest struct {
 	RootDir string
+	Git     string
 	Title   string
-	Sources []Source
 }
 
 func (r CreatePlanRequest) validate() error {
@@ -39,22 +25,12 @@ func (r CreatePlanRequest) validate() error {
 		return ErrPlanTitleRequired
 	}
 
-	if len(r.Sources) == 0 {
-		return ErrPlanSourcesRequired
+	if strings.TrimSpace(r.RootDir) == "" {
+		return ErrPlanRootDirRequired
 	}
 
-	for _, source := range r.Sources {
-		if strings.TrimSpace(source.Reference) == "" {
-			return ErrPlanSourceReferenceRequired
-		}
-
-		if !source.Kind.isValid() {
-			return ErrInvalidSourceKind
-		}
-
-		if source.Kind == SourceKindGit && strings.TrimSpace(r.RootDir) == "" {
-			return ErrPlanRootDirRequired
-		}
+	if strings.TrimSpace(r.Git) == "" {
+		return ErrPlanGitRequired
 	}
 
 	return nil
@@ -66,7 +42,7 @@ func normalizeRootDir(rootDir string) string {
 
 type CreatePlanResponse struct {
 	Title    string
-	Sources  []Source
+	Git      string
 	Items    []decider.Item
 	Markdown string
 }

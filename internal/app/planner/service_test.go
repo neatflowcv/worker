@@ -26,13 +26,8 @@ func TestServiceCreatePlan(t *testing.T) {
 	service := planner.NewService(newDeciderForCreatePlanTest(t, localDir))
 	request := planner.CreatePlanRequest{
 		RootDir: rootDir,
+		Git:     repositoryURL,
 		Title:   "Feedback Backlog Item 구현",
-		Sources: []planner.Source{
-			{Kind: planner.SourceKindGit, Reference: repositoryURL},
-			{Kind: planner.SourceKindURL, Reference: "docs/go-guide.md"},
-			{Kind: planner.SourceKindGit, Reference: repositoryURL},
-			{Kind: planner.SourceKindURL, Reference: "  docs/test-guide.md  "},
-		},
 	}
 
 	// Act
@@ -42,22 +37,13 @@ func TestServiceCreatePlan(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, plan)
 	require.Equal(t, "Feedback Backlog Item 구현", plan.Title)
-	require.Equal(
-		t,
-		[]planner.Source{
-			{Kind: planner.SourceKindGit, Reference: localDir},
-			{Kind: planner.SourceKindURL, Reference: "docs/go-guide.md"},
-			{Kind: planner.SourceKindGit, Reference: localDir},
-			{Kind: planner.SourceKindURL, Reference: "docs/test-guide.md"},
-		},
-		plan.Sources,
-	)
+	require.Equal(t, localDir, plan.Git)
 	require.Equal(
 		t,
 		[]decider.Item{
 			{
 				Question:        "무엇을 먼저 할까?",
-				ExpectedAnswers: []string{"Git", "URL"},
+				ExpectedAnswers: []string{"Git"},
 			},
 		},
 		plan.Items,
@@ -86,10 +72,8 @@ func TestServiceCreatePlanPullsExistingGitSource(t *testing.T) {
 	repositoryURL := createGitRepository(t, "README.md", "first\n")
 	request := planner.CreatePlanRequest{
 		RootDir: rootDir,
+		Git:     repositoryURL,
 		Title:   "Feedback Backlog Item 구현",
-		Sources: []planner.Source{
-			{Kind: planner.SourceKindGit, Reference: repositoryURL},
-		},
 	}
 
 	// Act
@@ -103,7 +87,7 @@ func TestServiceCreatePlanPullsExistingGitSource(t *testing.T) {
 	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, plan)
-	content, readErr := os.ReadFile(filepath.Join(plan.Sources[0].Reference, "README.md"))
+	content, readErr := os.ReadFile(filepath.Join(plan.Git, "README.md"))
 	require.NoError(t, readErr)
 	require.Equal(t, "second\n", string(content))
 }
@@ -115,10 +99,8 @@ func TestServiceCreatePlanReturnsErrorWhenTitleIsEmpty(t *testing.T) {
 	service := planner.NewService(unusedDecider(t))
 	request := planner.CreatePlanRequest{
 		RootDir: t.TempDir(),
+		Git:     createGitRepository(t, "plan.md", "# worker\n"),
 		Title:   "  ",
-		Sources: []planner.Source{
-			{Kind: planner.SourceKindGit, Reference: createGitRepository(t, "plan.md", "# worker\n")},
-		},
 	}
 
 	// Act
@@ -129,64 +111,41 @@ func TestServiceCreatePlanReturnsErrorWhenTitleIsEmpty(t *testing.T) {
 	require.Nil(t, plan)
 }
 
-func TestServiceCreatePlanReturnsErrorWhenSourcesAreEmpty(t *testing.T) {
+func TestServiceCreatePlanReturnsErrorWhenGitIsEmpty(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
 	service := planner.NewService(unusedDecider(t))
 	request := planner.CreatePlanRequest{
 		RootDir: t.TempDir(),
+		Git:     " ",
 		Title:   "Feedback Backlog Item 구현",
-		Sources: []planner.Source{},
 	}
 
 	// Act
 	plan, err := service.CreatePlan(request)
 
 	// Assert
-	require.ErrorIs(t, err, planner.ErrPlanSourcesRequired)
+	require.ErrorIs(t, err, planner.ErrPlanGitRequired)
 	require.Nil(t, plan)
 }
 
-func TestServiceCreatePlanReturnsErrorWhenSourceReferenceIsEmpty(t *testing.T) {
+func TestServiceCreatePlanReturnsErrorWhenRootDirIsEmpty(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
 	service := planner.NewService(unusedDecider(t))
 	request := planner.CreatePlanRequest{
-		RootDir: t.TempDir(),
+		RootDir: " ",
+		Git:     createGitRepository(t, "plan.md", "# worker\n"),
 		Title:   "Feedback Backlog Item 구현",
-		Sources: []planner.Source{
-			{Kind: planner.SourceKindGit, Reference: " "},
-		},
 	}
 
 	// Act
 	plan, err := service.CreatePlan(request)
 
 	// Assert
-	require.ErrorIs(t, err, planner.ErrPlanSourceReferenceRequired)
-	require.Nil(t, plan)
-}
-
-func TestServiceCreatePlanReturnsErrorWhenSourceKindIsInvalid(t *testing.T) {
-	t.Parallel()
-
-	// Arrange
-	service := planner.NewService(unusedDecider(t))
-	request := planner.CreatePlanRequest{
-		RootDir: t.TempDir(),
-		Title:   "Feedback Backlog Item 구현",
-		Sources: []planner.Source{
-			{Kind: planner.SourceKind("invalid"), Reference: "plan.md"},
-		},
-	}
-
-	// Act
-	plan, err := service.CreatePlan(request)
-
-	// Assert
-	require.ErrorIs(t, err, planner.ErrInvalidSourceKind)
+	require.ErrorIs(t, err, planner.ErrPlanRootDirRequired)
 	require.Nil(t, plan)
 }
 
@@ -255,18 +214,14 @@ func newDeciderForCreatePlanTest(t *testing.T, localDir string) deciderFunc {
 
 	return deciderFunc(func(request decider.DecideRequest) (*decider.Decision, error) {
 		require.Equal(t, "Feedback Backlog Item 구현", request.Title)
-		require.Equal(
-			t,
-			[]string{localDir, "docs/go-guide.md", localDir, "docs/test-guide.md"},
-			request.Directories,
-		)
+		require.Equal(t, []string{localDir}, request.Directories)
 
 		return &decider.Decision{
 			Markdown: "# Decision",
 			Items: []decider.Item{
 				{
 					Question:        "무엇을 먼저 할까?",
-					ExpectedAnswers: []string{"Git", "URL"},
+					ExpectedAnswers: []string{"Git"},
 				},
 			},
 		}, nil

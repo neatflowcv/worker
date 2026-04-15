@@ -41,14 +41,14 @@ func (s *Service) CreatePlan(request CreatePlanRequest) (*CreatePlanResponse, er
 
 	title := strings.TrimSpace(request.Title)
 
-	sources, err := s.fetchSources(normalizeRootDir(request.RootDir), request.Sources)
+	gitDir, err := fetchGitSource(normalizeRootDir(request.RootDir), request.Git)
 	if err != nil {
 		return nil, err
 	}
 
 	decision, err := s.decider.Decide(deciderpkg.DecideRequest{
 		Title:       title,
-		Directories: sourceReferences(sources),
+		Directories: []string{gitDir},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("decide plan: %w", err)
@@ -56,47 +56,22 @@ func (s *Service) CreatePlan(request CreatePlanRequest) (*CreatePlanResponse, er
 
 	return &CreatePlanResponse{
 		Title:    title,
-		Sources:  sources,
+		Git:      gitDir,
 		Items:    decision.Items,
 		Markdown: decision.Markdown,
 	}, nil
 }
 
-func (s *Service) fetchSources(rootDir string, rawSources []Source) ([]Source, error) {
-	sources := make([]Source, 0, len(rawSources))
-
-	for _, rawSource := range rawSources {
-		source, err := fetchSource(rootDir, rawSource)
-		if err != nil {
-			return nil, err
-		}
-
-		sources = append(sources, source)
-	}
-
-	return sources, nil
-}
-
-func fetchSource(rootDir string, source Source) (Source, error) {
-	if source.Kind != SourceKindGit {
-		return Source{
-			Kind:      source.Kind,
-			Reference: strings.TrimSpace(source.Reference),
-		}, nil
-	}
-
-	reference := strings.TrimSpace(source.Reference)
+func fetchGitSource(rootDir, reference string) (string, error) {
+	reference = strings.TrimSpace(reference)
 	localDir := filepath.Join(rootDir, repositoryDirName(reference))
 
 	err := syncGitRepository(localDir, reference)
 	if err != nil {
-		return Source{}, err
+		return "", err
 	}
 
-	return Source{
-		Kind:      source.Kind,
-		Reference: localDir,
-	}, nil
+	return localDir, nil
 }
 
 func repositoryDirName(reference string) string {
@@ -191,23 +166,4 @@ func newPullOptions() *git.PullOptions {
 			Password: "",
 		},
 	}
-}
-
-func (t SourceKind) isValid() bool {
-	switch t {
-	case SourceKindGit, SourceKindURL:
-		return true
-	default:
-		return false
-	}
-}
-
-func sourceReferences(sources []Source) []string {
-	references := make([]string, 0, len(sources))
-
-	for _, source := range sources {
-		references = append(references, source.Reference)
-	}
-
-	return references
 }

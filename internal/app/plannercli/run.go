@@ -74,13 +74,8 @@ func (r *Runner) Run(args []string, stdout io.Writer) error {
 func (a *app) Run(stdout io.Writer) error {
 	request := planner.CreatePlanRequest{
 		RootDir: a.runner.rootDir,
+		Git:     a.Git,
 		Title:   a.Title,
-		Sources: []planner.Source{
-			{
-				Kind:      planner.SourceKindGit,
-				Reference: a.Git,
-			},
-		},
 	}
 
 	response, err := a.runner.service.CreatePlan(request)
