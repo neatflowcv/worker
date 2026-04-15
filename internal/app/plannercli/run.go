@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/alecthomas/kong"
 	tea "github.com/charmbracelet/bubbletea"
@@ -375,14 +376,12 @@ func (m model) updateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.refinePlanCmd(answer)
 
 	case "backspace":
-		if len(m.customInput) > 0 {
-			m.customInput = m.customInput[:len(m.customInput)-1]
-		}
+		m.customInput = trimLastRune(m.customInput)
 
 		return m, nil
 
 	default:
-		if msg.Type == tea.KeyRunes {
+		if msg.Type == tea.KeyRunes || msg.Type == tea.KeySpace {
 			m.customInput += msg.String()
 		}
 
@@ -789,4 +788,17 @@ func writeMarkdownFile(outputPath, markdown string) error {
 	}
 
 	return nil
+}
+
+func trimLastRune(value string) string {
+	if value == "" {
+		return ""
+	}
+
+	_, size := utf8.DecodeLastRuneInString(value)
+	if size <= 0 {
+		return ""
+	}
+
+	return value[:len(value)-size]
 }
